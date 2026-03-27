@@ -1,5 +1,5 @@
 const EMOJI_REGEX = /[\u{1F300}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu;
-const HASHTAG_REGEX = /#\w+/g;
+const HASHTAG_REGEX = /#[\p{L}\p{N}_]+/gu;
 const URL_REGEX = /https?:\/\/\S+/g;
 const SPECIAL_REGEX = /[^\p{L}\p{N}\s]/gu;
 const MULTI_SPACE_REGEX = /\s+/g;

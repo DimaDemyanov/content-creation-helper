@@ -1,4 +1,4 @@
-# Yacht Content Aggregator
+# Content Creation Helper
 
 Инструмент для сбора постов о яхтинге из Telegram-каналов и Instagram, хранения и поиска по ним через Telegram-бота.
 

@@ -66,8 +66,6 @@ function buildIndex(posts) {
     winkNLP.tokens.stem,
   ]);
 
-  engine.consolidate();
-
   for (const post of posts) {
     engine.addDoc(
       { textClean: post.textClean || '', ocrText: post.ocrText || '' },
