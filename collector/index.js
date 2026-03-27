@@ -3,52 +3,99 @@ import cron from 'node-cron';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { collectTelegram } from './telegram.js';
-import { collectInstagram } from './instagram.js';
+import { collectTelegramChannel, disconnectTelegram } from './telegram.js';
+import { collectInstagramAccount } from './instagram.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const STATE_FILE = path.join(__dirname, '../data/state.json');
 const CONFIG_FILE = path.join(__dirname, '../config.json');
 
-async function readState() {
+export async function readState() {
   try {
     const raw = await fs.readFile(STATE_FILE, 'utf-8');
     return JSON.parse(raw);
   } catch {
-    return { lastCollectedAt: null };
+    return {};
   }
 }
 
-async function saveState(state) {
+export async function saveState(state) {
   await fs.writeFile(STATE_FILE, JSON.stringify(state, null, 2));
 }
 
-export async function collect() {
+export async function addChannel(source, username) {
   const config = JSON.parse(await fs.readFile(CONFIG_FILE, 'utf-8'));
   const state = await readState();
-  const since = state.lastCollectedAt;
 
-  console.log(`[Collector] Старт сбора. Since: ${since || 'первый запуск'}`);
+  if (source === 'telegram') {
+    if (!config.telegram.channels.includes(username)) {
+      config.telegram.channels.push(username);
+      await fs.writeFile(CONFIG_FILE, JSON.stringify(config, null, 2));
+    }
+    if (!state[username]) {
+      state[username] = { source: 'telegram', lastCollectedAt: null, allPostsDownloaded: false, totalPosts: 0 };
+      await saveState(state);
+    }
+  } else if (source === 'instagram') {
+    if (!config.instagram.accounts.includes(username)) {
+      config.instagram.accounts.push(username);
+      await fs.writeFile(CONFIG_FILE, JSON.stringify(config, null, 2));
+    }
+    const key = `ig_${username}`;
+    if (!state[key]) {
+      state[key] = { source: 'instagram', lastCollectedAt: null, allPostsDownloaded: false, totalPosts: 0 };
+      await saveState(state);
+    }
+  }
+}
 
-  const results = { telegram: null, instagram: null };
+export async function collect(channels = null) {
+  const config = JSON.parse(await fs.readFile(CONFIG_FILE, 'utf-8'));
+  const state = await readState();
 
-  results.telegram = await collectTelegram(
-    config.telegram.channels,
-    since
-  );
+  const tgChannels = channels
+    ? config.telegram.channels.filter(c => channels.includes(c))
+    : config.telegram.channels;
 
-  results.instagram = await collectInstagram(
-    config.instagram.accounts,
-    since,
-    config.instagram.firstRunLimit
-  );
+  const igAccounts = channels
+    ? config.instagram.accounts.filter(a => channels.includes(`ig_${a}`) || channels.includes(a))
+    : config.instagram.accounts;
 
-  const total = results.telegram.collected + results.instagram.collected;
-  console.log(`[Collector] Готово. Собрано новых постов: ${total}`);
+  console.log(`[Collector] Старт сбора. Каналы: ${[...tgChannels, ...igAccounts.map(a => `ig_${a}`)].join(', ')}`);
 
-  await saveState({ lastCollectedAt: new Date().toISOString() });
+  let totalCollected = 0;
 
-  return results;
+  for (const channel of tgChannels) {
+    const channelState = state[channel] || { lastCollectedAt: null, allPostsDownloaded: false, totalPosts: 0 };
+    try {
+      const result = await collectTelegramChannel(channel, channelState);
+      state[channel] = { source: 'telegram', ...result };
+      await saveState(state);
+      totalCollected += result.collected;
+      console.log(`[Telegram] @${channel}: +${result.collected} постов, всего ${result.totalPosts}`);
+    } catch (err) {
+      console.error(`[Telegram] Ошибка @${channel}:`, err.message);
+    }
+  }
+
+  await disconnectTelegram();
+
+  for (const account of igAccounts) {
+    const key = `ig_${account}`;
+    const channelState = state[key] || { lastCollectedAt: null, allPostsDownloaded: false, totalPosts: 0 };
+    try {
+      const result = await collectInstagramAccount(account, channelState, config.instagram.firstRunLimit);
+      state[key] = { source: 'instagram', ...result };
+      await saveState(state);
+      totalCollected += result.collected;
+      console.log(`[Instagram] @${account}: +${result.collected} постов, всего ${result.totalPosts}`);
+    } catch (err) {
+      console.error(`[Instagram] Ошибка @${account}:`, err.message);
+    }
+  }
+
+  console.log(`[Collector] Готово. Собрано новых постов: ${totalCollected}`);
+  return { totalCollected, state };
 }
 
 const isOnce = process.argv.includes('--once');

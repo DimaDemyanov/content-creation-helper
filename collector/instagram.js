@@ -10,36 +10,36 @@ const POSTS_DIR = path.join(__dirname, '../data/posts');
 
 const client = new ApifyClient({ token: process.env.APIFY_API_TOKEN });
 
-export async function collectInstagram(accounts, since = null, firstRunLimit = 500) {
-  const results = { collected: 0, channels: {} };
+export async function collectInstagramAccount(account, channelState, firstRunLimit = 500) {
+  const since = channelState.allPostsDownloaded ? channelState.lastCollectedAt : null;
+  const limit = since ? 50 : firstRunLimit;
 
-  for (const account of accounts) {
-    console.log(`[Instagram] Сбор из @${account}...`);
-    try {
-      const posts = await fetchAccountPosts(account, since, firstRunLimit);
-      await savePosts(account, posts);
-      results.collected += posts.length;
-      results.channels[`ig_${account}`] = posts.length;
-      console.log(`[Instagram] @${account}: собрано ${posts.length} постов`);
-    } catch (err) {
-      console.error(`[Instagram] Ошибка @${account}:`, err.message);
-    }
-  }
+  console.log(`[Instagram] Сбор из @${account} (limit: ${limit}, since: ${since || 'начало'})...`);
 
-  return results;
+  const posts = await fetchAccountPosts(account, since, limit);
+  const key = `ig_${account}`;
+  await savePosts(key, posts);
+
+  const existingPosts = await loadPosts(key);
+
+  return {
+    collected: posts.length,
+    allPostsDownloaded: posts.length < limit,
+    lastCollectedAt: new Date().toISOString(),
+    totalPosts: existingPosts.length,
+  };
 }
 
 async function fetchAccountPosts(account, since, limit) {
   const input = {
     directUrls: [`https://www.instagram.com/${account}/`],
-    resultsLimit: since ? 50 : limit,
+    resultsLimit: limit,
   };
 
   const run = await client.actor('apify/instagram-scraper').call(input);
   const { items } = await client.dataset(run.defaultDatasetId).listItems();
 
   const sinceDate = since ? new Date(since) : null;
-
   const filtered = sinceDate
     ? items.filter(item => new Date(item.timestamp) > sinceDate)
     : items;
@@ -83,10 +83,10 @@ async function buildPost(item, account) {
   };
 }
 
-async function savePosts(account, posts) {
+async function savePosts(key, posts) {
   if (posts.length === 0) return;
 
-  const filePath = path.join(POSTS_DIR, `ig_${account}.json`);
+  const filePath = path.join(POSTS_DIR, `${key}.json`);
   let existing = [];
 
   try {
@@ -99,4 +99,14 @@ async function savePosts(account, posts) {
   const merged = [...existing, ...newPosts];
 
   await fs.writeFile(filePath, JSON.stringify(merged, null, 2));
+}
+
+async function loadPosts(key) {
+  const filePath = path.join(POSTS_DIR, `${key}.json`);
+  try {
+    const raw = await fs.readFile(filePath, 'utf-8');
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
 }

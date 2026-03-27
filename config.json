@@ -1,12 +1,14 @@
 {
   "telegram": {
     "channels": [
-      "yacht_russia"
+      "seapinta",
+      "silavetrasila"
     ]
   },
   "instagram": {
     "accounts": [
-      "yacht_account"
+      "clevel.yacht",
+      "anton_timk"
     ],
     "firstRunLimit": 500
   },

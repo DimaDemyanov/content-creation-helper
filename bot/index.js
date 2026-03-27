@@ -2,7 +2,7 @@ import 'dotenv/config';
 import TelegramBot from 'node-telegram-bot-api';
 import OpenAI from 'openai';
 import { search, getStats } from '../search/index.js';
-import { collect } from '../collector/index.js';
+import { collect, addChannel, readState } from '../collector/index.js';
 
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -17,6 +17,8 @@ bot.onText(/\/start/, (msg) => {
     '/generate <запрос> — найти посты и сгенерировать похожий текст',
     '/collect — запустить сбор новых постов',
     '/status — статистика по каналам',
+    '/addchannel telegram <username> — добавить Telegram-канал',
+    '/addchannel instagram <username> — добавить Instagram-аккаунт',
   ].join('\n'));
 });
 
@@ -92,11 +94,12 @@ bot.onText(/\/collect/, async (msg) => {
   await bot.sendMessage(chatId, 'Запускаю сбор постов...');
 
   try {
-    const results = await collect();
-    const tg = results.telegram?.collected || 0;
-    const ig = results.instagram?.collected || 0;
-
-    bot.sendMessage(chatId, `Готово!\nTelegram: +${tg} постов\nInstagram: +${ig} постов`);
+    const { totalCollected, state } = await collect();
+    const lines = Object.entries(state).map(
+      ([ch, s]) => `${ch}: +${s.collected || 0} (всего ${s.totalPosts})`
+    );
+    lines.push('', `Итого новых: ${totalCollected}`);
+    bot.sendMessage(chatId, lines.join('\n'));
   } catch (err) {
     console.error('[Bot] /collect error:', err);
     bot.sendMessage(chatId, 'Ошибка при сборе.');
@@ -107,20 +110,45 @@ bot.onText(/\/status/, async (msg) => {
   const chatId = msg.chat.id;
 
   try {
-    const stats = await getStats();
-    const lines = Object.entries(stats).map(([ch, count]) => `${ch}: ${count} постов`);
+    const state = await readState();
+    const entries = Object.entries(state);
 
-    if (lines.length === 0) {
-      return bot.sendMessage(chatId, 'Постов пока нет.');
+    if (entries.length === 0) {
+      return bot.sendMessage(chatId, 'Каналов пока нет.');
     }
 
-    const total = Object.values(stats).reduce((sum, n) => sum + n, 0);
+    const lines = entries.map(([ch, s]) => {
+      const lastSync = s.lastCollectedAt ? formatDate(s.lastCollectedAt) : 'никогда';
+      const downloaded = s.allPostsDownloaded ? 'все' : 'не все';
+      return `${ch} [${s.source}]: ${s.totalPosts} постов, последний сбор: ${lastSync}, архив: ${downloaded}`;
+    });
+
+    const total = entries.reduce((sum, [, s]) => sum + (s.totalPosts || 0), 0);
     lines.push('', `Всего: ${total} постов`);
 
     bot.sendMessage(chatId, lines.join('\n'));
   } catch (err) {
     console.error('[Bot] /status error:', err);
     bot.sendMessage(chatId, 'Ошибка при получении статистики.');
+  }
+});
+
+bot.onText(/\/addchannel (telegram|instagram) (.+)/, async (msg, match) => {
+  const source = match[1].trim();
+  const username = match[2].trim().replace('@', '');
+  const chatId = msg.chat.id;
+
+  try {
+    await addChannel(source, username);
+    await bot.sendMessage(chatId, `Добавлен канал @${username} (${source}). Запускаю первичный сбор...`);
+
+    const channelKey = source === 'instagram' ? `ig_${username}` : username;
+    const { totalCollected } = await collect([channelKey]);
+
+    bot.sendMessage(chatId, `Готово! Собрано ${totalCollected} постов из @${username}.`);
+  } catch (err) {
+    console.error('[Bot] /addchannel error:', err);
+    bot.sendMessage(chatId, `Ошибка при добавлении канала: ${err.message}`);
   }
 });
 

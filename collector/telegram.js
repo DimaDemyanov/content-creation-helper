@@ -1,21 +1,23 @@
 import { TelegramClient } from 'telegram';
 import { StringSession } from 'telegram/sessions/index.js';
-import { Api } from 'telegram/tl/index.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { cleanText } from '../utils/textClean.js';
-import { extractTextFromImage } from '../utils/ocr.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const POSTS_DIR = path.join(__dirname, '../data/posts');
 const SESSION_FILE = path.join(__dirname, '../data/telegram.session');
 
-export async function collectTelegram(channels, since = null) {
+let client = null;
+
+async function getClient() {
+  if (client) return client;
+
   const sessionStr = await fs.readFile(SESSION_FILE, 'utf-8').catch(() => '');
   const session = new StringSession(sessionStr);
 
-  const client = new TelegramClient(
+  client = new TelegramClient(
     session,
     Number(process.env.TELEGRAM_API_ID),
     process.env.TELEGRAM_API_HASH,
@@ -28,40 +30,46 @@ export async function collectTelegram(channels, since = null) {
     throw new Error('Telegram не авторизован. Запусти node auth/telegram.js');
   }
 
-  const results = { collected: 0, channels: {} };
-
-  for (const channel of channels) {
-    console.log(`[Telegram] Сбор из @${channel}...`);
-    try {
-      const posts = await fetchChannelPosts(client, channel, since);
-      await savePosts(channel, posts);
-      results.collected += posts.length;
-      results.channels[channel] = posts.length;
-      console.log(`[Telegram] @${channel}: собрано ${posts.length} постов`);
-    } catch (err) {
-      console.error(`[Telegram] Ошибка @${channel}:`, err.message);
-    }
-  }
-
-  const newSession = client.session.save();
-  await fs.writeFile(SESSION_FILE, newSession);
-  await client.disconnect();
-
-  return results;
+  return client;
 }
 
-async function fetchChannelPosts(client, channel, since) {
-  const posts = [];
-  const entity = await client.getEntity(channel);
+export async function disconnectTelegram() {
+  if (client) {
+    const newSession = client.session.save();
+    await fs.writeFile(SESSION_FILE, newSession);
+    await client.disconnect();
+    client = null;
+  }
+}
 
-  const params = { limit: 100 };
-  if (since) params.offsetDate = Math.floor(new Date(since).getTime() / 1000);
+export async function collectTelegramChannel(channel, channelState) {
+  const tgClient = await getClient();
+  const since = channelState.allPostsDownloaded ? channelState.lastCollectedAt : null;
+
+  console.log(`[Telegram] Сбор из @${channel} (since: ${since || 'начало'})...`);
+
+  const posts = await fetchChannelPosts(tgClient, channel, since);
+  await savePosts(channel, posts);
+
+  const existingPosts = await loadPosts(channel);
+
+  return {
+    collected: posts.length,
+    allPostsDownloaded: posts.length < 100,
+    lastCollectedAt: new Date().toISOString(),
+    totalPosts: existingPosts.length,
+  };
+}
+
+async function fetchChannelPosts(tgClient, channel, since) {
+  const posts = [];
+  const entity = await tgClient.getEntity(channel);
 
   let offsetId = 0;
   let hasMore = true;
 
   while (hasMore) {
-    const messages = await client.getMessages(entity, { ...params, offsetId, reverse: false });
+    const messages = await tgClient.getMessages(entity, { limit: 100, offsetId, reverse: false });
 
     if (messages.length === 0) break;
 
@@ -144,6 +152,16 @@ async function savePosts(channel, posts) {
   const merged = [...existing, ...newPosts];
 
   await fs.writeFile(filePath, JSON.stringify(merged, null, 2));
+}
+
+async function loadPosts(channel) {
+  const filePath = path.join(POSTS_DIR, `${channel}.json`);
+  try {
+    const raw = await fs.readFile(filePath, 'utf-8');
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
 }
 
 function sleep(ms) {
