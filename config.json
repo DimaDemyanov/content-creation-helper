@@ -1,0 +1,20 @@
+{
+  "telegram": {
+    "channels": [
+      "yacht_russia"
+    ]
+  },
+  "instagram": {
+    "accounts": [
+      "yacht_account"
+    ],
+    "firstRunLimit": 500
+  },
+  "search": {
+    "topK": 10,
+    "minScore": 0.01
+  },
+  "collect": {
+    "schedule": "0 9 * * *"
+  }
+}

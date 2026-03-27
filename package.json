@@ -1,0 +1,24 @@
+{
+  "name": "yacht-content-aggregator",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "collect": "node collector/index.js --once",
+    "bot": "node bot/index.js"
+  },
+  "dependencies": {
+    "openai": "^4.0.0",
+    "@nlpjs/lang-ru": "^4.27.0",
+    "apify-client": "^2.9.0",
+    "dotenv": "^16.0.0",
+    "gram-js": "^2.26.0",
+    "node-cron": "^3.0.0",
+    "node-telegram-bot-api": "^0.66.0",
+    "node-tesseract-ocr": "^2.2.1",
+    "wink-bm25-text-search": "^2.3.0",
+    "wink-nlp-utils": "^2.1.0",
+    "axios": "^1.6.0",
+    "@inquirer/prompts": "^5.0.0"
+  }
+}
