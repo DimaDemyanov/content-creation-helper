@@ -11,26 +11,29 @@ const POSTS_DIR = path.join(__dirname, '../data/posts');
 const client = new ApifyClient({ token: process.env.APIFY_API_TOKEN });
 
 export async function collectInstagramAccount(account, channelState, firstRunLimit = 500) {
-  const since = channelState.allPostsDownloaded ? channelState.lastCollectedAt : null;
+  const since = channelState.lastCollectedAt || null;
   const limit = since ? 50 : firstRunLimit;
 
   console.log(`[Instagram] Сбор из @${account} (limit: ${limit}, since: ${since || 'начало'})...`);
 
-  const posts = await fetchAccountPosts(account, since, limit);
   const key = `ig_${account}`;
-  await savePosts(key, posts);
-
-  const existingPosts = await loadPosts(key);
+  const { totalCollected, allPostsDownloaded, channelTotalPosts } = await fetchAndSaveAccountPosts(account, since, limit, key);
+  const downloadedStats = await computeDownloadedStats(key);
 
   return {
-    collected: posts.length,
-    allPostsDownloaded: posts.length < limit,
+    collected: totalCollected,
+    allPostsDownloaded,
     lastCollectedAt: new Date().toISOString(),
-    totalPosts: existingPosts.length,
+    totalPosts: downloadedStats.count,
+    downloadedDateFrom: downloadedStats.dateFrom,
+    downloadedDateTo: downloadedStats.dateTo,
+    channelTotalPosts: channelTotalPosts ?? null,
+    channelDateFrom: null,
+    channelDateTo: null,
   };
 }
 
-async function fetchAccountPosts(account, since, limit) {
+async function fetchAndSaveAccountPosts(account, since, limit, key) {
   const input = {
     directUrls: [`https://www.instagram.com/${account}/`],
     resultsLimit: limit,
@@ -39,18 +42,28 @@ async function fetchAccountPosts(account, since, limit) {
   const run = await client.actor('apify/instagram-scraper').call(input);
   const { items } = await client.dataset(run.defaultDatasetId).listItems();
 
+  const channelTotalPosts = items[0]?.ownerFullName ? null : items[0]?.postsCount ?? null;
+
   const sinceDate = since ? new Date(since) : null;
   const filtered = sinceDate
     ? items.filter(item => new Date(item.timestamp) > sinceDate)
     : items;
 
-  const posts = [];
-  for (const item of filtered) {
-    const post = await buildPost(item, account);
-    posts.push(post);
+  const BATCH_SIZE = 50;
+  let totalCollected = 0;
+
+  for (let i = 0; i < filtered.length; i += BATCH_SIZE) {
+    const batch = [];
+    for (const item of filtered.slice(i, i + BATCH_SIZE)) {
+      const post = await buildPost(item, account);
+      batch.push(post);
+    }
+    await savePosts(key, batch);
+    totalCollected += batch.length;
+    console.log(`[Instagram] @${account}: сохранён батч ${batch.length} постов (всего: ${totalCollected})`);
   }
 
-  return posts;
+  return { totalCollected, allPostsDownloaded: filtered.length < limit, channelTotalPosts };
 }
 
 async function buildPost(item, account) {
@@ -109,4 +122,16 @@ async function loadPosts(key) {
   } catch {
     return [];
   }
+}
+
+async function computeDownloadedStats(key) {
+  const posts = await loadPosts(key);
+  if (posts.length === 0) return { count: 0, dateFrom: null, dateTo: null };
+
+  const dates = posts.map(p => new Date(p.date).getTime()).filter(Boolean);
+  return {
+    count: posts.length,
+    dateFrom: new Date(Math.min(...dates)).toISOString(),
+    dateTo: new Date(Math.max(...dates)).toISOString(),
+  };
 }

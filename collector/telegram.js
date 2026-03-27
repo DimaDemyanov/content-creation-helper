@@ -42,37 +42,60 @@ export async function disconnectTelegram() {
   }
 }
 
-export async function collectTelegramChannel(channel, channelState) {
+export async function collectTelegramChannel(channel, channelState, onBatchSaved) {
   const tgClient = await getClient();
-  const since = channelState.allPostsDownloaded ? channelState.lastCollectedAt : null;
+  const since = channelState.lastCollectedAt || null;
 
   console.log(`[Telegram] Сбор из @${channel} (since: ${since || 'начало'})...`);
 
-  const posts = await fetchChannelPosts(tgClient, channel, since);
-  await savePosts(channel, posts);
-
-  const existingPosts = await loadPosts(channel);
+  const entity = await tgClient.getEntity(channel);
+  const channelInfo = await getChannelInfo(tgClient, entity);
+  const { totalCollected, allPostsDownloaded } = await fetchAndSaveChannelPosts(tgClient, entity, channel, since, onBatchSaved);
+  const downloadedStats = await computeDownloadedStats(channel);
 
   return {
-    collected: posts.length,
-    allPostsDownloaded: posts.length < 100,
+    collected: totalCollected,
+    allPostsDownloaded,
     lastCollectedAt: new Date().toISOString(),
-    totalPosts: existingPosts.length,
+    totalPosts: downloadedStats.count,
+    downloadedDateFrom: downloadedStats.dateFrom,
+    downloadedDateTo: downloadedStats.dateTo,
+    channelTotalPosts: channelInfo.totalPosts,
+    channelDateFrom: channelInfo.dateFrom,
+    channelDateTo: channelInfo.dateTo,
   };
 }
 
-async function fetchChannelPosts(tgClient, channel, since) {
-  const posts = [];
-  const entity = await tgClient.getEntity(channel);
+async function getChannelInfo(tgClient, entity) {
+  try {
+    // Последнее сообщение
+    const [last] = await tgClient.getMessages(entity, { limit: 1 });
+    // Самое первое сообщение (offsetId=1 возвращает с начала в обратном порядке)
+    const [first] = await tgClient.getMessages(entity, { limit: 1, reverse: true });
+
+    return {
+      totalPosts: entity.participantsCount ?? last?.id ?? null,
+      dateFrom: first ? new Date(first.date * 1000).toISOString() : null,
+      dateTo: last ? new Date(last.date * 1000).toISOString() : null,
+    };
+  } catch {
+    return { totalPosts: null, dateFrom: null, dateTo: null };
+  }
+}
+
+async function fetchAndSaveChannelPosts(tgClient, entity, channel, since, onBatchSaved) {
 
   let offsetId = 0;
   let hasMore = true;
+  let totalCollected = 0;
+  let allPostsDownloaded = false;
 
   while (hasMore) {
     const messages = await tgClient.getMessages(entity, { limit: 100, offsetId, reverse: false });
 
     if (messages.length === 0) break;
 
+    const batch = [];
     for (const msg of messages) {
       if (!msg.text && !msg.media) continue;
       if (since && msg.date * 1000 < new Date(since).getTime()) {
@@ -81,16 +104,26 @@ async function fetchChannelPosts(tgClient, channel, since) {
       }
 
       const post = await buildPost(msg, channel);
-      posts.push(post);
+      batch.push(post);
+    }
+
+    if (batch.length > 0) {
+      await savePosts(channel, batch);
+      totalCollected += batch.length;
+      console.log(`[Telegram] @${channel}: сохранён батч ${batch.length} постов (всего: ${totalCollected})`);
+      if (onBatchSaved) await onBatchSaved(totalCollected);
     }
 
     offsetId = messages[messages.length - 1].id;
-    if (messages.length < 100) hasMore = false;
+    if (messages.length < 100) {
+      allPostsDownloaded = true;
+      hasMore = false;
+    }
 
     await sleep(500);
   }
 
-  return posts;
+  return { totalCollected, allPostsDownloaded };
 }
 
 async function buildPost(msg, channel) {
@@ -162,6 +195,18 @@ async function loadPosts(channel) {
   } catch {
     return [];
   }
+}
+
+async function computeDownloadedStats(channel) {
+  const posts = await loadPosts(channel);
+  if (posts.length === 0) return { count: 0, dateFrom: null, dateTo: null };
+
+  const dates = posts.map(p => new Date(p.date).getTime()).filter(Boolean);
+  return {
+    count: posts.length,
+    dateFrom: new Date(Math.min(...dates)).toISOString(),
+    dateTo: new Date(Math.max(...dates)).toISOString(),
+  };
 }
 
 function sleep(ms) {

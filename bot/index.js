@@ -119,8 +119,21 @@ bot.onText(/\/status/, async (msg) => {
 
     const lines = entries.map(([ch, s]) => {
       const lastSync = s.lastCollectedAt ? formatDate(s.lastCollectedAt) : 'никогда';
-      const downloaded = s.allPostsDownloaded ? 'все' : 'не все';
-      return `${ch} [${s.source}]: ${s.totalPosts} постов, последний сбор: ${lastSync}, архив: ${downloaded}`;
+      const archiveStatus = s.allPostsDownloaded ? 'полный' : 'неполный';
+      const downloadedRange = s.downloadedDateFrom && s.downloadedDateTo
+        ? `${formatDate(s.downloadedDateFrom)} — ${formatDate(s.downloadedDateTo)}`
+        : 'нет данных';
+      const channelRange = s.channelDateFrom && s.channelDateTo
+        ? `${formatDate(s.channelDateFrom)} — ${formatDate(s.channelDateTo)}`
+        : 'нет данных';
+      const channelTotal = s.channelTotalPosts != null ? s.channelTotalPosts : '?';
+
+      return [
+        `📌 ${ch} [${s.source}]`,
+        `  Скачано: ${s.totalPosts} постов (${downloadedRange})`,
+        `  На канале: ${channelTotal} постов (${channelRange})`,
+        `  Архив: ${archiveStatus} | Последний сбор: ${lastSync}`,
+      ].join('\n');
     });
 
     const total = entries.reduce((sum, [, s]) => sum + (s.totalPosts || 0), 0);
