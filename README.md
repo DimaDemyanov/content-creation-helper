@@ -1,6 +1,6 @@
 # Yacht Content Aggregator
 
-Инструмент для сбора постов о яхтинге из Telegram-каналов, хранения и поиска по ним через Telegram-бота.
+Инструмент для сбора постов о яхтинге из Telegram-каналов и Instagram, хранения и поиска по ним через Telegram-бота.
 
 ---
 
@@ -12,7 +12,7 @@
 
 ## Цель проекта
 
-Собирать посты на тему яхтинга из Telegram-каналов, хранить их локально и искать по текстам — для анализа и помощи в написании похожих постов.
+Собирать посты на тему яхтинга из Telegram-каналов и Instagram, хранить их локально и искать по текстам — для анализа и помощи в написании похожих постов.
 
 ---
 
@@ -27,7 +27,7 @@
 - **Instagram** — через Apify (`apify/instagram-scraper`), Node.js SDK (`apify-client`)
 
 ### Хранилище
-- **JSON-файлы** — локально, структура: `posts/`, `channels/`
+- **JSON-файлы** — локально, структура: `data/posts/`
 - Причина: простота, без зависимостей от БД
 
 Структура одного поста:
@@ -41,73 +41,84 @@
   "text": "Оригинальный текст с эмодзи 🌊 и #хэштегами",
   "textClean": "Очищенный текст для индексации",
   "ocrText": "Текст извлечённый с картинок",
-  "media": [
-    { "type": "photo", "localPath": "data/media/channel_name_12345_1.jpg" }
-  ],
-  "stats": {
-    "views": 4200,
-    "likes": 142,
-    "comments": 18
-  },
+  "media": [{ "type": "photo" }],
+  "stats": { "views": 4200, "likes": 142, "comments": 18 },
   "collectedAt": "2026-03-27T08:00:00Z"
 }
 ```
 
-Медиафайлы: скачиваем → OCR → удаляем локальный файл.
+Структура `data/state.json` (per-channel):
+```json
+{
+  "seapinta": {
+    "source": "telegram",
+    "lastCollectedAt": "2026-03-27T09:00:00Z",
+    "allPostsDownloaded": true,
+    "totalPosts": 342,
+    "downloadedDateFrom": "2023-01-15T00:00:00Z",
+    "downloadedDateTo": "2026-03-27T00:00:00Z",
+    "channelTotalPosts": 850,
+    "channelDateFrom": "2020-05-01T00:00:00Z",
+    "channelDateTo": "2026-03-27T00:00:00Z"
+  }
+}
+```
+
+### Сбор данных
+- **Расписание** — автоматически 1 раз в день через `node-cron`
+- **Первый запуск:** Telegram — все посты (бесплатно), Instagram — последние 500 постов на канал (~$0.12 на канал)
+- **Ежедневный сбор** — только новые посты с момента `lastCollectedAt` (дельта)
+- **Сохранение батчами** — Telegram каждые 100 постов, Instagram каждые 50, прогресс не теряется при падении
+- Состояние хранится в `data/state.json` отдельно для каждого канала
 
 ### Поиск
 - **BM25 + лемматизация** — ранжирование постов по частоте ключевых слов с учётом длины текста
 - Лемматизация приводит слова к базовой форме ("штормовой" → "шторм")
-- **Расширение запроса через Claude** — перед поиском Claude генерирует синонимы в контексте яхтинга ("шторм" → шквал, буря, волнение, непогода)
+- **Расширение запроса через OpenAI** — перед поиском `gpt-4o-mini` генерирует синонимы в контексте яхтинга ("шторм" → шквал, буря, волнение, непогода)
 - **Очистка текста при сохранении** — удаляем эмодзи, хэштеги и спецсимволы перед индексацией, оригинал сохраняем отдельно для отображения
 - Библиотеки: `wink-bm25-text-search` + `@nlpjs/lang-ru`
 - Доступ через **Telegram-бота** (не веб-интерфейс)
 
 ### Обработка картинок
 - **Tesseract OCR** (`node-tesseract-ocr`) — извлечение текста с изображений локально, бесплатно
-- Логика: есть текст на картинке → добавляем к тексту поста перед индексацией
+- Логика: скачиваем фото → OCR → удаляем локальный файл, `ocrText` сохраняется в пост
 - Tesseract нужно установить системно: `brew install tesseract tesseract-lang`
-
-### Известные ограничения
-- **Двуязычность** — русская лемматизация не обрабатывает англоязычные посты (актуально для Instagram). Английские посты будут проиндексированы без лемматизации, поиск по ним хуже. Решение на будущее: добавить `@nlpjs/lang-en` и определять язык поста автоматически.
-
-### Сбор данных
-- **Расписание** — автоматически 1 раз в день через `node-cron`
-- **Первый запуск:** Telegram — все посты (бесплатно), Instagram — последние 500 постов на канал (~$0.12 на канал)
-- **Ежедневный сбор** — только новые посты с момента последнего запуска (дельта), дёшево для обоих источников
-- Дата последнего сбора хранится в `data/state.json`
 
 ### AI-интеграция
 - **OpenAI API** (`gpt-4o-mini`) — расширение поисковых запросов синонимами и генерация постов
 - Вызывается из бота по запросу пользователя
+
+### Известные ограничения
+- **Двуязычность** — русская лемматизация не обрабатывает англоязычные посты (актуально для Instagram). Решение на будущее: добавить `@nlpjs/lang-en` и определять язык поста автоматически.
 
 ---
 
 ## Архитектура (3 модуля)
 
 ```
-Telegram каналы       Instagram аккаунты/хештеги
+Telegram каналы       Instagram аккаунты
       │                        │
       │                 [Apify Scraper]
       │                        │
       ▼                        ▼
 [Модуль 1: Collector]  ←── Планировщик (node-cron / ручной запуск)
   GramJS / MTProto + apify-client
+  Сохранение батчами + per-channel state
       │
       ▼
-[JSON-файлы]  posts/*.json, channels/*.json
+[JSON-файлы]  data/posts/*.json + data/state.json
       │
       ▼
 [Модуль 2: Search]
-  Полнотекстовый поиск по файлам
+  BM25 + лемматизация + расширение запроса через OpenAI
       │
       ▼
 [Модуль 3: Telegram Bot]  ←──▶  Пользователь
   node-telegram-bot-api
       │
       ▼
-[Claude API]
-  Анализ + генерация постов
+[OpenAI API]
+  Синонимы для поиска + генерация постов
 ```
 
 ---
@@ -116,43 +127,10 @@ Telegram каналы       Instagram аккаунты/хештеги
 
 | Модуль | Статус | Описание |
 |--------|--------|----------|
-| Collector (Telegram) | ⏳ В работе | Сбор постов из TG-каналов через GramJS |
-| Collector (Instagram) | 🔲 Не начат | Сбор постов через Apify instagram-scraper |
-| Search | 🔲 Не начат | BM25 + лемматизация по JSON-файлам |
-| Bot | 🔲 Не начат | Telegram-бот для поиска |
-
----
-
-## Необходимые credentials
-
-| Ключ | Где получить | Статус |
-|------|-------------|--------|
-| `TELEGRAM_API_ID` | my.telegram.org | ❓ |
-| `TELEGRAM_API_HASH` | my.telegram.org | ❓ |
-| `TELEGRAM_BOT_TOKEN` | @BotFather | ❓ |
-| `OPENAI_API_KEY` | platform.openai.com | ❓ |
-| `APIFY_API_TOKEN` | console.apify.com | ❓ |
-
----
-
-## Структура проекта (целевая)
-
-```
-yacht-content/
-├── README.md
-├── .env                  # credentials (не в git!)
-├── config.json           # список каналов
-├── collector/
-│   ├── telegram.js
-│   └── instagram.js
-├── search/
-│   └── index.js
-├── bot/
-│   └── index.js
-└── data/
-    ├── posts/
-    └── channels/
-```
+| Collector (Telegram) | ✅ Готов | GramJS, батчи по 100, per-channel state |
+| Collector (Instagram) | ✅ Готов | Apify, батчи по 50, per-channel state |
+| Search | ✅ Готов | BM25 + лемматизация + синонимы OpenAI |
+| Bot | ✅ Готов | Команды: search, generate, collect, status, addchannel |
 
 ---
 
@@ -160,18 +138,70 @@ yacht-content/
 
 | Команда | Описание |
 |---------|----------|
-| `/search <запрос>` | Найти посты по теме (BM25 + синонимы Claude) |
-| `/generate <запрос>` | Найти посты и сгенерировать похожий текст через Claude |
+| `/search <запрос>` | Найти посты по теме (BM25 + синонимы OpenAI) |
+| `/generate <запрос>` | Найти посты и сгенерировать похожий текст |
 | `/collect` | Запустить сбор новых постов вручную |
-| `/status` | Статистика по каждому каналу: постов, дата последнего сбора, скачан ли архив |
+| `/status` | Статистика: скачано/всего постов, диапазоны дат, архив |
 | `/addchannel telegram <username>` | Добавить Telegram-канал и запустить первичный сбор |
 | `/addchannel instagram <username>` | Добавить Instagram-аккаунт и запустить первичный сбор |
 
 ---
 
-## Следующий шаг
+## Необходимые credentials
 
-Реализовать **Модуль 1 — Collector**:
-- Подключение к Telegram через GramJS
-- Чтение постов из списка каналов в `config.json`
-- Сохранение в `data/posts/{channel_name}.json`
+| Ключ | Где получить |
+|------|-------------|
+| `TELEGRAM_API_ID` | my.telegram.org |
+| `TELEGRAM_API_HASH` | my.telegram.org |
+| `TELEGRAM_BOT_TOKEN` | @BotFather |
+| `OPENAI_API_KEY` | platform.openai.com |
+| `APIFY_API_TOKEN` | console.apify.com |
+
+---
+
+## Структура проекта
+
+```
+content-creation-helper/
+├── README.md
+├── .env                  # credentials (не в git!)
+├── config.json           # список каналов и настройки
+├── auth/
+│   └── telegram.js       # одноразовая авторизация GramJS
+├── collector/
+│   ├── index.js          # оркестратор + cron
+│   ├── telegram.js       # GramJS сбор
+│   └── instagram.js      # Apify сбор
+├── search/
+│   └── index.js          # BM25 + лемматизация + OpenAI
+├── bot/
+│   └── index.js          # Telegram бот
+├── utils/
+│   ├── textClean.js      # очистка текста от эмодзи/хэштегов
+│   └── ocr.js            # Tesseract OCR
+└── data/
+    ├── state.json        # per-channel состояние сбора
+    ├── posts/            # JSON файлы с постами по каналам
+    └── media/            # временные файлы для OCR
+```
+
+---
+
+## Запуск
+
+```bash
+# 1. Установить зависимости
+npm install
+
+# 2. Установить Tesseract
+brew install tesseract tesseract-lang
+
+# 3. Авторизоваться в Telegram (один раз)
+node auth/telegram.js
+
+# 4. Запустить бота
+node bot/index.js
+
+# 5. Запустить сбор вручную (опционально)
+node collector/index.js --once
+```
