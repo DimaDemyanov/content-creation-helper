@@ -14,12 +14,13 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { describe, it, expect } from 'vitest';
-import { search, vectorSearch, hybridSearch } from '../search/index.js';
-import { loadAllEmbeddings } from '../search/embeddings.js';
+import { search, vectorSearch, hybridSearch, vectorSearchChunked, hybridSearchChunked } from '../search/index.js';
+import { loadAllEmbeddings, loadAllChunkEmbeddings } from '../search/embeddings.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const POSTS_DIR = path.join(__dirname, 'fixtures/posts');
 const EMBEDDINGS_DIR = path.join(__dirname, 'fixtures/embeddings');
+const CHUNK_EMBEDDINGS_DIR = path.join(__dirname, 'fixtures/chunk-embeddings');
 
 // Ground truth: для каждой темы — какие посты должны попасть в top-5
 // Достаточно попадания хотя бы одного из списка (Hit@5)
@@ -136,29 +137,77 @@ describe('Гибридный поиск (hybridSearch)', () => {
   }
 });
 
+// --- Vector Chunked ---
+
+describe('Векторный поиск по чанкам (vectorSearchChunked)', () => {
+  it('чанк-эмбеддинги загружены', async () => {
+    const chunkMap = await loadAllChunkEmbeddings(CHUNK_EMBEDDINGS_DIR);
+    expect(chunkMap.size).toBeGreaterThan(0);
+  });
+
+  for (const { query, relevant } of TOPICS) {
+    it(query, async () => {
+      const results = await vectorSearchChunked(query, TOP_K, { postsDir: POSTS_DIR, chunkEmbeddingsDir: CHUNK_EMBEDDINGS_DIR });
+      const found = hit(results, relevant);
+      const pos = firstHitPosition(results, relevant);
+      if (!found) {
+        console.log(`  ❌ VectorChunked не нашёл. top-${TOP_K}:`, results.map(r => r.id));
+      } else {
+        console.log(`  ✅ VectorChunked pos ${pos}: ${results[pos - 1].id}`);
+      }
+      expect(found).toBe(true);
+    }, 30_000);
+  }
+});
+
+// --- Hybrid Chunked ---
+
+describe('Гибридный поиск по чанкам (hybridSearchChunked)', () => {
+  for (const { query, relevant } of TOPICS) {
+    it(query, async () => {
+      const results = await hybridSearchChunked(query, TOP_K, { postsDir: POSTS_DIR, chunkEmbeddingsDir: CHUNK_EMBEDDINGS_DIR });
+      const found = hit(results, relevant);
+      const pos = firstHitPosition(results, relevant);
+      if (!found) {
+        console.log(`  ❌ HybridChunked не нашёл. top-${TOP_K}:`, results.map(r => r.id));
+      } else {
+        console.log(`  ✅ HybridChunked pos ${pos}: ${results[pos - 1].id}`);
+      }
+      expect(found).toBe(true);
+    }, 30_000);
+  }
+});
+
 // --- Сводная таблица ---
 
 describe('Сводный отчёт Hit@5', () => {
   it('выводит таблицу по всем методам', async () => {
     const rows = [];
     for (const { query, relevant } of TOPICS) {
-      const [bm25, vec, hybrid] = await Promise.all([
+      const [bm25, vec, hybrid, vecChunk, hybridChunk] = await Promise.all([
         search(query, TOP_K, { postsDir: POSTS_DIR }),
         vectorSearch(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR }),
         hybridSearch(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR }),
+        vectorSearchChunked(query, TOP_K, { postsDir: POSTS_DIR, chunkEmbeddingsDir: CHUNK_EMBEDDINGS_DIR }),
+        hybridSearchChunked(query, TOP_K, { postsDir: POSTS_DIR, chunkEmbeddingsDir: CHUNK_EMBEDDINGS_DIR }),
       ]);
       rows.push({
-        query: query.slice(0, 45),
-        bm25: hit(bm25, relevant) ? `✅ pos${firstHitPosition(bm25, relevant)}` : '❌',
-        vec: hit(vec, relevant) ? `✅ pos${firstHitPosition(vec, relevant)}` : '❌',
-        hybrid: hit(hybrid, relevant) ? `✅ pos${firstHitPosition(hybrid, relevant)}` : '❌',
+        query: query.slice(0, 40),
+        bm25: hit(bm25, relevant) ? `✅${firstHitPosition(bm25, relevant)}` : '❌',
+        vec: hit(vec, relevant) ? `✅${firstHitPosition(vec, relevant)}` : '❌',
+        hybrid: hit(hybrid, relevant) ? `✅${firstHitPosition(hybrid, relevant)}` : '❌',
+        vecChunk: hit(vecChunk, relevant) ? `✅${firstHitPosition(vecChunk, relevant)}` : '❌',
+        hybChunk: hit(hybridChunk, relevant) ? `✅${firstHitPosition(hybridChunk, relevant)}` : '❌',
       });
     }
     console.table(rows);
 
-    const bm25Score = rows.filter(r => r.bm25.startsWith('✅')).length;
-    const vecScore = rows.filter(r => r.vec.startsWith('✅')).length;
-    const hybridScore = rows.filter(r => r.hybrid.startsWith('✅')).length;
-    console.log(`\nИтого Hit@${TOP_K}: BM25=${bm25Score}/10  Vector=${vecScore}/10  Hybrid=${hybridScore}/10`);
-  }, 120_000);
+    const score = (col) => rows.filter(r => r[col].startsWith('✅')).length;
+    console.log(`\nИтого Hit@${TOP_K}:`);
+    console.log(`  BM25        = ${score('bm25')}/10`);
+    console.log(`  Vector      = ${score('vec')}/10`);
+    console.log(`  Hybrid      = ${score('hybrid')}/10`);
+    console.log(`  VecChunked  = ${score('vecChunk')}/10`);
+    console.log(`  HybChunked  = ${score('hybChunk')}/10`);
+  }, 180_000);
 });

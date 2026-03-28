@@ -5,6 +5,7 @@ import OpenAI from 'openai';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_EMBEDDINGS_DIR = path.join(__dirname, '../data/embeddings');
+const DEFAULT_CHUNK_EMBEDDINGS_DIR = path.join(__dirname, '../data/chunk-embeddings');
 const MODEL = 'text-embedding-3-small';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -68,4 +69,52 @@ export async function saveEmbeddings(channel, newEntries, embeddingsDir = DEFAUL
   }
 
   await fs.writeFile(filePath, JSON.stringify(Array.from(map.entries()).map(([id, vector]) => ({ id, vector }))));
+}
+
+// --- Chunk embeddings ---
+// Формат: [{ postId, chunkIdx, vector }]
+// Хранятся отдельно от full-post эмбеддингов в data/chunk-embeddings/
+
+/**
+ * Загружает чанк-эмбеддинги в Map<postId, { chunkIdx, vector }[]>
+ */
+export async function loadAllChunkEmbeddings(chunkEmbeddingsDir = DEFAULT_CHUNK_EMBEDDINGS_DIR) {
+  const map = new Map(); // postId → [{chunkIdx, vector}]
+  let files;
+  try {
+    files = await fs.readdir(chunkEmbeddingsDir);
+  } catch {
+    return map;
+  }
+  for (const file of files) {
+    if (!file.endsWith('.json')) continue;
+    try {
+      const raw = await fs.readFile(path.join(chunkEmbeddingsDir, file), 'utf-8');
+      const entries = JSON.parse(raw);
+      for (const { postId, chunkIdx, vector } of entries) {
+        if (!map.has(postId)) map.set(postId, []);
+        map.get(postId).push({ chunkIdx, vector });
+      }
+    } catch {}
+  }
+  return map;
+}
+
+export async function saveChunkEmbeddings(channel, newEntries, chunkEmbeddingsDir = DEFAULT_CHUNK_EMBEDDINGS_DIR) {
+  await fs.mkdir(chunkEmbeddingsDir, { recursive: true });
+  const filePath = path.join(chunkEmbeddingsDir, `${channel}.json`);
+
+  let existing = [];
+  try {
+    existing = JSON.parse(await fs.readFile(filePath, 'utf-8'));
+  } catch {}
+
+  // Ключ: postId + chunkIdx
+  const map = new Map(existing.map(e => [`${e.postId}:${e.chunkIdx}`, e]));
+  for (const entry of newEntries) {
+    map.set(`${entry.postId}:${entry.chunkIdx}`, entry);
+  }
+
+  await fs.writeFile(chunkEmbeddingsDir + '/' + channel + '.json',
+    JSON.stringify(Array.from(map.values())));
 }
