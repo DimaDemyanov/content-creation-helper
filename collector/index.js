@@ -49,6 +49,33 @@ export async function addChannel(source, username) {
   }
 }
 
+export async function removeChannel(source, username) {
+  const config = JSON.parse(await fs.readFile(CONFIG_FILE, 'utf-8'));
+  const state = await readState();
+
+  const key = source === 'instagram' ? `ig_${username}` : username;
+
+  // Удаляем из config.json
+  if (source === 'telegram') {
+    config.telegram.channels = config.telegram.channels.filter(c => c !== username);
+  } else if (source === 'instagram') {
+    config.instagram.accounts = config.instagram.accounts.filter(a => a !== username);
+  }
+  await fs.writeFile(CONFIG_FILE, JSON.stringify(config, null, 2));
+
+  // Удаляем из state.json
+  delete state[key];
+  await saveState(state);
+
+  // Удаляем файл постов
+  const postsFile = path.join(__dirname, `../data/posts/${key}.json`);
+  await fs.rm(postsFile, { force: true });
+
+  // Удаляем файл эмбеддингов
+  const embeddingsFile = path.join(__dirname, `../data/embeddings/${key}.json`);
+  await fs.rm(embeddingsFile, { force: true });
+}
+
 export async function collect(channels = null) {
   const config = JSON.parse(await fs.readFile(CONFIG_FILE, 'utf-8'));
   const state = await readState();

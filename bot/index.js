@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 import TelegramBot from 'node-telegram-bot-api';
 import OpenAI from 'openai';
 import { search, getStats } from '../search/index.js';
-import { collect, addChannel, readState } from '../collector/index.js';
+import { collect, addChannel, removeChannel, readState } from '../collector/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const POSTS_DIR = path.join(__dirname, '../data/posts');
@@ -25,6 +25,8 @@ bot.onText(/\/start/, (msg) => {
     '/status — статистика по каналам',
     '/addchannel telegram <username> — добавить Telegram-канал',
     '/addchannel instagram <username> — добавить Instagram-аккаунт',
+    '/removechannel telegram <username> — удалить канал и все его посты',
+    '/removechannel instagram <username> — удалить аккаунт и все его посты',
   ].join('\n'));
 });
 
@@ -166,6 +168,20 @@ bot.onText(/\/status/, async (msg) => {
   } catch (err) {
     console.error('[Bot] /status error:', err);
     bot.sendMessage(chatId, 'Ошибка при получении статистики.');
+  }
+});
+
+bot.onText(/\/removechannel (telegram|instagram) (.+)/, async (msg, match) => {
+  const source = match[1].trim();
+  const username = match[2].trim().replace('@', '');
+  const chatId = msg.chat.id;
+
+  try {
+    await removeChannel(source, username);
+    bot.sendMessage(chatId, `Канал @${username} (${source}) удалён вместе со всеми постами и эмбеддингами.`);
+  } catch (err) {
+    console.error('[Bot] /removechannel error:', err);
+    bot.sendMessage(chatId, `Ошибка при удалении канала: ${err.message}`);
   }
 });
 

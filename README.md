@@ -158,6 +158,8 @@ Telegram каналы       Instagram аккаунты
 | `/status` | Статистика: скачано/всего постов, диапазоны дат, архив |
 | `/addchannel telegram <username>` | Добавить Telegram-канал и запустить первичный сбор |
 | `/addchannel instagram <username>` | Добавить Instagram-аккаунт и запустить первичный сбор |
+| `/removechannel telegram <username>` | Удалить канал, все его посты и эмбеддинги |
+| `/removechannel instagram <username>` | Удалить аккаунт, все его посты и эмбеддинги |
 
 ---
 
