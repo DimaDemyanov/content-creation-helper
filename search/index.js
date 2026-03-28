@@ -61,7 +61,7 @@ function buildIndex(posts) {
   engine.definePrepTasks([
     winkNLP.string.lowerCase,
     winkNLP.string.removeExtraSpaces,
-    winkNLP.string.tokenize0,
+    (s) => (s.match(/[\p{L}\p{N}]+/gu) || []),
     winkNLP.tokens.removeWords,
     winkNLP.tokens.stem,
   ]);

@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Мокаем fs и OpenAI до импорта модуля
 vi.mock('fs/promises', () => ({
   default: {
     readdir: vi.fn(),
@@ -23,60 +22,165 @@ vi.mock('openai', () => ({
 import fs from 'fs/promises';
 import { search, getStats } from '../search/index.js';
 
+// Посты в стиле реального яхтенного блога.
+// text = оригинальный текст, textClean = очищенная версия того же текста (без эмодзи, хэштегов)
 const POSTS = [
+  // --- Мотивация и философия ---
   {
-    id: 'seapinta_1',
+    id: 'p1',
     channel: 'seapinta',
-    date: '2026-01-01T00:00:00Z',
-    text: 'The yacht sailed into a heavy storm with waves reaching 4 meters',
-    textClean: 'The yacht sailed into a heavy storm with waves reaching 4 meters',
+    date: '2025-09-01T10:00:00Z',
+    url: 'https://t.me/seapinta/101',
+    text: 'Зачем вообще уходить в море? Объясняю 🌊\n\nНа берегу есть всё: комфорт, интернет, доставка еды. Но в море есть только ты, ветер и горизонт. Именно это и меняет людей. Яхтинг — это не просто отдых, это способ перезагрузиться, почувствовать себя живым снова. Море лечит лучше любого психолога.',
+    textClean: 'Зачем вообще уходить в море Объясняю На берегу есть всё комфорт интернет доставка еды Но в море есть только ты ветер и горизонт Именно это и меняет людей Яхтинг это не просто отдых это способ перезагрузиться почувствовать себя живым снова Море лечит лучше любого психолога',
     ocrText: null,
-    url: 'https://t.me/seapinta/1',
   },
   {
-    id: 'seapinta_2',
+    id: 'p2',
     channel: 'seapinta',
-    date: '2026-01-02T00:00:00Z',
-    text: 'Beautiful sunset at the marina with yachts moored at the dock',
-    textClean: 'Beautiful sunset at the marina with yachts moored at the dock',
+    date: '2025-09-05T12:00:00Z',
+    url: 'https://t.me/seapinta/102',
+    text: 'Почему яхта лучше отеля 🛥️\n\nВ отеле ты смотришь на море из окна. На яхте ты живёшь в море. Яхта — это свобода маршрута, бухты без туристов, закаты с кокпита, тишина ночью. Отель даёт сервис, яхта даёт ощущение что ты сам себе хозяин.',
+    textClean: 'Почему яхта лучше отеля В отеле ты смотришь на море из окна На яхте ты живёшь в море Яхта это свобода маршрута бухты без туристов закаты с кокпита тишина ночью Отель даёт сервис яхта даёт ощущение что ты сам себе хозяин',
     ocrText: null,
-    url: 'https://t.me/seapinta/2',
+  },
+
+  // --- Анонсы и продажи ---
+  {
+    id: 'p3',
+    channel: 'seapinta',
+    date: '2026-01-10T09:00:00Z',
+    url: 'https://t.me/seapinta/103',
+    text: 'Осталось 3 каюты на майский чартер 🗺️\n\nСтарт из Бодрума 10 мая на 7 дней. Маршрут: Бодрум — Гёджек через острова. Цена каюты на двоих 1200 евро, включая питание. Три каюты ещё доступны — пиши сразу.',
+    textClean: 'Осталось 3 каюты на майский чартер Старт из Бодрума 10 мая на 7 дней Маршрут Бодрум Гёджек через острова Цена каюты на двоих 1200 евро включая питание Три каюты ещё доступны пиши сразу',
+    ocrText: null,
   },
   {
-    id: 'seapinta_3',
+    id: 'p4',
     channel: 'seapinta',
-    date: '2026-01-03T00:00:00Z',
-    text: 'Storm intensifies with squall winds up to 25 knots severe storm warning',
-    textClean: 'Storm intensifies with squall winds up to 25 knots severe storm warning',
+    date: '2026-02-01T11:00:00Z',
+    url: 'https://t.me/seapinta/104',
+    text: 'Предпродажа закрывается через 6 дней ⏳\n\nУспей занять место по цене предпродажи. После предпродажи стоимость вырастет на 20%. Осталось 6 дней и несколько мест в предпродаже.',
+    textClean: 'Предпродажа закрывается через 6 дней Успей занять место по цене предпродажи После предпродажи стоимость вырастет на 20 процентов Осталось 6 дней и несколько мест в предпродаже',
     ocrText: null,
-    url: 'https://t.me/seapinta/3',
+  },
+
+  // --- Жизнь на борту ---
+  {
+    id: 'p5',
+    channel: 'seapinta',
+    date: '2025-07-15T07:00:00Z',
+    url: 'https://t.me/seapinta/105',
+    text: 'Как выглядит утро на яхте ☀️\n\nПодъём когда хочешь, кофе в кокпите пока солнце встаёт. Смотришь прогноз, решаешь куда идти сегодня. Неспешно поднимаешь якорь и ловишь первый бриз. Утро на яхте — это лучшее начало дня которое я знаю.',
+    textClean: 'Как выглядит утро на яхте Подъём когда хочешь кофе в кокпите пока солнце встаёт Смотришь прогноз решаешь куда идти сегодня Неспешно поднимаешь якорь и ловишь первый бриз Утро на яхте это лучшее начало дня которое я знаю',
+    ocrText: null,
   },
   {
-    id: 'seapinta_4',
+    id: 'p6',
     channel: 'seapinta',
-    date: '2026-01-04T00:00:00Z',
-    text: 'The regatta started in strong wind conditions near the coast',
-    textClean: 'The regatta started in strong wind conditions near the coast',
+    date: '2025-07-20T14:00:00Z',
+    url: 'https://t.me/seapinta/106',
+    text: 'Один день: переход из Бодрума в Мармарис ⛵\n\nВышли в 8 утра, ветер северо-западный 15 узлов. Подняли паруса, через час лавировки вышли на курс. Обед на якоре в бухте у Datca, купание. Пришли в Мармарис к закату, прошли 48 миль.',
+    textClean: 'Один день переход из Бодрума в Мармарис Вышли в 8 утра ветер северо-западный 15 узлов Подняли паруса через час лавировки вышли на курс Обед на якоре в бухте у Datca купание Пришли в Мармарис к закату прошли 48 миль',
     ocrText: null,
-    url: 'https://t.me/seapinta/4',
+  },
+
+  // --- Истории ---
+  {
+    id: 'p7',
+    channel: 'seapinta',
+    date: '2024-08-20T18:00:00Z',
+    url: 'https://t.me/seapinta/107',
+    text: 'История: он сделал ей предложение прямо на руле 💍\n\nОни познакомились на первой регате три года назад. Он предложил ей выйти замуж в море, на закате — она была за штурвалом. Свадьбу сыграли на яхте месяц спустя.',
+    textClean: 'История он сделал ей предложение прямо на руле Они познакомились на первой регате три года назад Он предложил ей выйти замуж в море на закате она была за штурвалом Свадьбу сыграли на яхте месяц спустя',
+    ocrText: null,
   },
   {
-    id: 'seapinta_5',
+    id: 'p8',
     channel: 'seapinta',
-    date: '2026-01-05T00:00:00Z',
-    text: 'Yacht moored at the marina after a long offshore passage',
-    textClean: 'Yacht moored at the marina after a long offshore passage',
+    date: '2024-09-10T16:00:00Z',
+    url: 'https://t.me/seapinta/108',
+    text: 'История: акула прошла под килем 🦈\n\nМы стояли на якоре у рифа, я нырял с маской. Вдруг вижу тень снизу — акула, метра два, медленно идёт под лодкой. Вылез на борт, руки не слушаются. Потом смотрел в маску и видел акулу ещё раз, уже без паники. Теперь это любимая история на вечеринках.',
+    textClean: 'История акула прошла под килем Мы стояли на якоре у рифа я нырял с маской Вдруг вижу тень снизу акула метра два медленно идёт под лодкой Вылез на борт руки не слушаются Потом смотрел в маску и видел акулу ещё раз уже без паники Теперь это любимая история на вечеринках',
     ocrText: null,
-    url: 'https://t.me/seapinta/5',
   },
   {
-    id: 'seapinta_6',
+    id: 'p9',
     channel: 'seapinta',
-    date: '2026-01-06T00:00:00Z',
-    text: 'Rigging maintenance and inspection before the sailing season begins',
-    textClean: 'Rigging maintenance and inspection before the sailing season begins',
+    date: '2024-10-05T20:00:00Z',
+    url: 'https://t.me/seapinta/109',
+    text: 'История: как мы сели на мель у Родоса ночью ⚓\n\nШли в темноте по знакомому фарватеру — удар и стоп. Сели на мель, глубина по карте три метра, реально меньше двух. Попытки сойти с мели самостоятельно ни к чему. Вызвали буксир, сошли с мели на рассвете, киль цел, обошлось. История про мель теперь всегда первая за столом.',
+    textClean: 'История как мы сели на мель у Родоса ночью Шли в темноте по знакомому фарватеру удар и стоп Сели на мель глубина по карте три метра реально меньше двух Попытки сойти с мели самостоятельно ни к чему Вызвали буксир сошли с мели на рассвете киль цел обошлось История про мель теперь всегда первая за столом',
     ocrText: null,
-    url: 'https://t.me/seapinta/6',
+  },
+  {
+    id: 'p10',
+    channel: 'seapinta',
+    date: '2024-11-15T14:00:00Z',
+    url: 'https://t.me/seapinta/110',
+    text: 'История: как нас накрыл шторм у берегов Сицилии 🌊\n\nШторм пришёл быстро — прогноз обещал 15 узлов, стало 35. Волны три метра, яхта ложилась на борт. Убрали все паруса, шли под мотором. Шторм длился 6 часов, потом море успокоилось. Все живы, но это был настоящий шторм.',
+    textClean: 'История как нас накрыл шторм у берегов Сицилии Шторм пришёл быстро прогноз обещал 15 узлов стало 35 Волны три метра яхта ложилась на борт Убрали все паруса шли под мотором Шторм длился 6 часов потом море успокоилось Все живы но это был настоящий шторм',
+    ocrText: null,
+  },
+
+  // --- Обучение и советы ---
+  {
+    id: 'p11',
+    channel: 'seapinta',
+    date: '2025-03-01T10:00:00Z',
+    url: 'https://t.me/seapinta/111',
+    text: 'Как попасть на яхту если никогда не ходил 🧭\n\nСамый простой способ — крюинг-сервисы, там ищут людей на свободные каюты. Или запишись на курс шкипера, уже через неделю выйдешь в море. Или найди кого-то у кого есть яхта и предложи помочь со швартовкой. Первый раз всегда страшно и всегда незабываемо.',
+    textClean: 'Как попасть на яхту если никогда не ходил Самый простой способ крюинг сервисы там ищут людей на свободные каюты Или запишись на курс шкипера уже через неделю выйдешь в море Или найди кого-то у кого есть яхта и предложи помочь со швартовкой Первый раз всегда страшно и всегда незабываемо',
+    ocrText: null,
+  },
+  {
+    id: 'p12',
+    channel: 'seapinta',
+    date: '2025-04-10T12:00:00Z',
+    url: 'https://t.me/seapinta/112',
+    text: 'Что реально удивляет людей на яхте в первый раз 😲\n\nДумаешь будет качка — а море зеркальное. Думаешь скучно — а дел полно. Думаешь будешь один — а экипаж становится семьёй за три дня. Думаешь это дорого — а потом считаешь что дешевле чем отель на Мальдивах.',
+    textClean: 'Что реально удивляет людей на яхте в первый раз Думаешь будет качка а море зеркальное Думаешь скучно а дел полно Думаешь будешь один а экипаж становится семьёй за три дня Думаешь это дорого а потом считаешь что дешевле чем отель на Мальдивах',
+    ocrText: null,
+  },
+  {
+    id: 'p13',
+    channel: 'seapinta',
+    date: '2025-05-20T11:00:00Z',
+    url: 'https://t.me/seapinta/113',
+    text: 'Что брать на яхту — список от капитана 🎒\n\nЛёгкая одежда в слоях, солнцезащитный крем SPF 50, обувь с белой подошвой, поляризованные очки. Из лекарств — средство от морской болезни, обязательно, даже если думаешь что не нужно. Минимум вещей — яхта не отель, тут нет места для чемоданов.',
+    textClean: 'Что брать на яхту список от капитана Лёгкая одежда в слоях солнцезащитный крем SPF 50 обувь с белой подошвой поляризованные очки Из лекарств средство от морской болезни обязательно даже если думаешь что не нужно Минимум вещей яхта не отель тут нет места для чемоданов',
+    ocrText: null,
+  },
+
+  // --- Места ---
+  {
+    id: 'p14',
+    channel: 'seapinta',
+    date: '2025-06-01T09:00:00Z',
+    url: 'https://t.me/seapinta/114',
+    text: 'Гёджек — почему сюда возвращаются снова и снова 📍\n\nДесятки укрытых бухт, бирюзовая вода, руины Ликии в лесу, греческие острова рядом. Бухты Гёджека — одни из лучших на Средиземном море. Встаёшь на якорь в тишине, вокруг только горы и вода. Именно за этим люди возвращаются в Гёджек каждый год.',
+    textClean: 'Гёджек почему сюда возвращаются снова и снова Десятки укрытых бухт бирюзовая вода руины Ликии в лесу греческие острова рядом Бухты Гёджека одни из лучших на Средиземном море Встаёшь на якорь в тишине вокруг только горы и вода Именно за этим люди возвращаются в Гёджек каждый год',
+    ocrText: null,
+  },
+  {
+    id: 'p15',
+    channel: 'seapinta',
+    date: '2025-08-10T15:00:00Z',
+    url: 'https://t.me/seapinta/115',
+    text: 'Топ бухты Турции где я ставил якорь 🗺️\n\nПервое место — бухта у Гёджека с руинами Кекова. Второе — бухта Клеопатры у Мармариса. Третье — Кабак, бухта среди сосен у Олюдениза. В каждой бухте Турции своя атмосфера, но якорь везде держит хорошо.',
+    textClean: 'Топ бухты Турции где я ставил якорь Первое место бухта у Гёджека с руинами Кекова Второе бухта Клеопатры у Мармариса Третье Кабак бухта среди сосен у Олюдениза В каждой бухте Турции своя атмосфера но якорь везде держит хорошо',
+    ocrText: null,
+  },
+
+  // --- Событие ---
+  {
+    id: 'p16',
+    channel: 'seapinta',
+    date: '2026-03-15T10:00:00Z',
+    url: 'https://t.me/seapinta/116',
+    text: 'Регата в Бодруме — 5 яхт, 3 дня ⛵🏁\n\nСтарт 20 апреля. Регата пройдёт по маршруту Бодрум — Яссыада — Кос — Бодрум. В регате 5 яхт от 38 до 45 футов. Призы победителям регаты вручает организатор. Запись на регату через личку.',
+    textClean: 'Регата в Бодруме 5 яхт 3 дня Старт 20 апреля Регата пройдёт по маршруту Бодрум Яссыада Кос Бодрум В регате 5 яхт от 38 до 45 футов Призы победителям регаты вручает организатор Запись на регату через личку',
+    ocrText: 'Регата Бодрум 2026 старт 20 апреля',
   },
 ];
 
@@ -86,64 +190,204 @@ beforeEach(() => {
   fs.readFile.mockResolvedValue(JSON.stringify(POSTS));
 });
 
-describe('search', () => {
+describe('search — базовые сценарии', () => {
   it('возвращает пустой массив если постов нет', async () => {
     fs.readdir.mockResolvedValue([]);
-    const results = await search('шторм');
-    expect(results).toEqual([]);
-  });
-
-  it('находит посты по ключевому слову', async () => {
-    const results = await search('storm');
-    expect(results.length).toBeGreaterThan(0);
-    expect(results[0].id).toBeDefined();
-  });
-
-  it('посты с большим количеством упоминаний выше в выдаче', async () => {
-    const results = await search('storm');
-    // seapinta_3 содержит "storm" дважды, seapinta_1 — один раз
-    const ids = results.map(r => r.id);
-    expect(ids.indexOf('seapinta_3')).toBeLessThan(ids.indexOf('seapinta_1'));
+    expect(await search('яхта')).toEqual([]);
   });
 
   it('не возвращает больше topK результатов', async () => {
-    const results = await search('яхта', 2);
-    expect(results.length).toBeLessThanOrEqual(2);
+    const results = await search('яхта', 3);
+    expect(results.length).toBeLessThanOrEqual(3);
   });
 
-  it('каждый результат содержит score', async () => {
-    const results = await search('шторм');
+  it('каждый результат содержит score, id, url, channel, date', async () => {
+    const results = await search('море');
+    expect(results.length).toBeGreaterThan(0);
     for (const r of results) {
-      expect(r.score).toBeDefined();
       expect(typeof r.score).toBe('number');
+      expect(r.id).toBeDefined();
+      expect(r.url).toBeDefined();
+      expect(r.channel).toBeDefined();
+      expect(r.date).toBeDefined();
     }
   });
 
-  it('не падает если OpenAI недоступен', async () => {
+  it('несуществующее слово возвращает пустой массив', async () => {
+    expect(await search('ксилофонтрактор')).toEqual([]);
+  });
+
+  it('не падает если OpenAI недоступен — возвращает результаты через fallback', async () => {
     const OpenAI = (await import('openai')).default;
     OpenAI.mockImplementationOnce(() => ({
       chat: { completions: { create: vi.fn().mockRejectedValue(new Error('network error')) } },
     }));
-    const results = await search('storm');
+    const results = await search('шторм');
     expect(results.length).toBeGreaterThan(0);
+  });
+
+  it('ищет и по ocrText', async () => {
+    // p16 содержит "Регата Бодрум 2026 старт 20 апреля" в ocrText
+    const results = await search('Бодрум 2026');
+    const ids = results.map(r => r.id);
+    expect(ids).toContain('p16');
+  });
+});
+
+describe('search — живые запросы как от пользователя', () => {
+  it('зачем вообще уходить в море', async () => {
+    const results = await search('зачем уходить море');
+    const ids = results.map(r => r.id);
+    expect(ids).toContain('p1');
+  });
+
+  it('чартер в Турцию весной', async () => {
+    const results = await search('чартер Турция май');
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].id).toBe('p3');
+  });
+
+  it('когда закрывается предпродажа', async () => {
+    const results = await search('предпродажа закрывается дней');
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].id).toBe('p4');
+  });
+
+  it('как выглядит утро на яхте', async () => {
+    const results = await search('утро яхта кофе');
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].id).toBe('p5');
+  });
+
+  it('переход под парусами', async () => {
+    const results = await search('переход паруса ветер');
+    const ids = results.map(r => r.id);
+    expect(ids).toContain('p6');
+  });
+
+  it('предложение руки и сердца на яхте', async () => {
+    const results = await search('предложение замуж яхта');
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].id).toBe('p7');
+  });
+
+  it('история с акулой', async () => {
+    const results = await search('акула под лодкой история');
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].id).toBe('p8');
+  });
+
+  it('как мы сели на мель', async () => {
+    const results = await search('сели мель ночью');
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].id).toBe('p9');
+  });
+
+  it('попали в шторм', async () => {
+    const results = await search('шторм волны паруса');
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].id).toBe('p10');
+  });
+
+  it('как первый раз попасть на яхту', async () => {
+    const results = await search('первый раз яхта как попасть');
+    const ids = results.map(r => r.id);
+    expect(ids).toContain('p11');
+  });
+
+  it('что удивляет на яхте новичков', async () => {
+    const results = await search('удивляет яхта первый раз');
+    const ids = results.map(r => r.id);
+    expect(ids).toContain('p12');
+  });
+
+  it('что взять с собой на яхту', async () => {
+    const results = await search('взять яхта список вещей');
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].id).toBe('p13');
+  });
+
+  it('лучшие бухты для якорной стоянки', async () => {
+    const results = await search('бухты якорь Турция');
+    expect(results.length).toBeGreaterThan(0);
+    const ids = results.map(r => r.id);
+    expect(ids[0] === 'p14' || ids[0] === 'p15').toBe(true);
+  });
+
+  it('регата в Бодруме', async () => {
+    const results = await search('регата Бодрум яхты');
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].id).toBe('p16');
+  });
+});
+
+describe('search — ранжирование', () => {
+  it('пост с двумя упоминаниями мели ранжируется выше поста с одним', async () => {
+    // p9: "мель" 3 раза; p10: 0 раз
+    const results = await search('мель');
+    expect(results[0].id).toBe('p9');
+  });
+
+  it('пост про предпродажу ранжируется первым по точному слову', async () => {
+    const results = await search('предпродажа');
+    expect(results[0].id).toBe('p4');
+  });
+
+  it('пост про шторм ранжируется первым по слову "шторм"', async () => {
+    const results = await search('шторм');
+    expect(results[0].id).toBe('p10');
+  });
+
+  it('пост про бухты с большим числом упоминаний ранжируется выше', async () => {
+    // p15: "бухт" 4 раза; p14: 2 раза
+    const results = await search('бухты');
+    const ids = results.map(r => r.id);
+    expect(ids.indexOf('p15')).toBeLessThan(ids.indexOf('p14'));
+  });
+});
+
+describe('search — изоляция тем', () => {
+  it('запрос про акулу не находит пост про предпродажу', async () => {
+    const results = await search('акула');
+    expect(results.map(r => r.id)).not.toContain('p4');
+  });
+
+  it('запрос про мель не находит пост про утро на яхте', async () => {
+    const results = await search('мель');
+    expect(results.map(r => r.id)).not.toContain('p5');
+  });
+
+  it('уникальный термин находит только один пост', async () => {
+    const results = await search('предпродажи');
+    expect(results.every(r => r.id === 'p4')).toBe(true);
   });
 });
 
 describe('getStats', () => {
-  it('возвращает количество постов по каждому каналу', async () => {
-    const stats = await getStats();
-    expect(stats).toEqual({ seapinta: 6 });
+  it('возвращает количество постов по каналу', async () => {
+    expect(await getStats()).toEqual({ seapinta: 16 });
   });
 
   it('возвращает пустой объект если постов нет', async () => {
     fs.readdir.mockResolvedValue([]);
-    const stats = await getStats();
-    expect(stats).toEqual({});
+    expect(await getStats()).toEqual({});
   });
 
   it('игнорирует не-json файлы', async () => {
     fs.readdir.mockResolvedValue(['seapinta.json', '.DS_Store', 'readme.txt']);
     const stats = await getStats();
     expect(Object.keys(stats)).toEqual(['seapinta']);
+  });
+
+  it('считает посты по нескольким каналам', async () => {
+    const otherChannel = POSTS.slice(0, 5).map(p => ({ ...p, channel: 'silavetrasila' }));
+    fs.readdir.mockResolvedValue(['seapinta.json', 'silavetrasila.json']);
+    fs.readFile.mockImplementation((filePath) => {
+      if (String(filePath).includes('silavetrasila')) return Promise.resolve(JSON.stringify(otherChannel));
+      return Promise.resolve(JSON.stringify(POSTS));
+    });
+    const stats = await getStats();
+    expect(stats.seapinta).toBe(16);
+    expect(stats.silavetrasila).toBe(5);
   });
 });

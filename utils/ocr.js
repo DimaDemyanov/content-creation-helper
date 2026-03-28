@@ -1,33 +1,45 @@
-import tesseract from 'node-tesseract-ocr';
 import axios from 'axios';
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import OpenAI from 'openai';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const MEDIA_DIR = path.join(__dirname, '../data/media');
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const OCR_CONFIG = {
-  lang: 'rus+eng',
-  oem: 1,
-  psm: 3,
-};
-
-export async function extractTextFromImage(imageUrl, postId) {
-  const localPath = path.join(MEDIA_DIR, `${postId}_ocr.jpg`);
-
+// imageUrl может быть https://... или data:image/jpeg;base64,...
+export async function extractTextFromImage(imageUrl) {
   try {
-    await downloadImage(imageUrl, localPath);
-    const text = await tesseract.recognize(localPath, OCR_CONFIG);
-    return text.trim() || null;
+    let dataUrl;
+    if (imageUrl.startsWith('data:')) {
+      dataUrl = imageUrl;
+    } else {
+      const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+      const base64 = Buffer.from(response.data).toString('base64');
+      const mimeType = response.headers['content-type'] || 'image/jpeg';
+      dataUrl = `data:${mimeType};base64,${base64}`;
+    }
+
+    const result = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      max_tokens: 500,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image_url',
+              image_url: { url: dataUrl },
+            },
+            {
+              type: 'text',
+              text: 'Если на изображении есть текст — выпиши его. Если текста нет или он нечитаем — ответь только словом "нет".',
+            },
+          ],
+        },
+      ],
+    });
+
+    const text = result.choices[0].message.content.trim();
+    if (!text || text.toLowerCase() === 'нет') return null;
+    return text;
   } catch {
     return null;
-  } finally {
-    await fs.unlink(localPath).catch(() => {});
   }
-}
-
-async function downloadImage(url, localPath) {
-  const response = await axios.get(url, { responseType: 'arraybuffer' });
-  await fs.writeFile(localPath, response.data);
 }

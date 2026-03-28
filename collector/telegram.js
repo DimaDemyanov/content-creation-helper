@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { cleanText } from '../utils/textClean.js';
+import { extractTextFromImage } from '../utils/ocr.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const POSTS_DIR = path.join(__dirname, '../data/posts');
@@ -134,19 +135,23 @@ async function buildPost(msg, channel) {
   let mediaInfo = null;
 
   if (msg.media?.photo) {
+    mediaInfo = [{ type: 'photo' }];
     try {
       const buffer = await msg.downloadMedia();
       if (buffer) {
-        const tmpPath = path.join(__dirname, `../data/media/tg_${msg.id}.jpg`);
-        await fs.writeFile(tmpPath, buffer);
-        const tesseract = await import('node-tesseract-ocr');
-        ocrText = await tesseract.default.recognize(tmpPath, { lang: 'rus+eng', oem: 1, psm: 3 });
-        await fs.unlink(tmpPath).catch(() => {});
-        ocrText = ocrText?.trim() || null;
-        mediaInfo = [{ type: 'photo' }];
+        // Пропускаем слишком большие изображения (> 5 MB в base64 ~ 3.75 MB raw)
+        if (buffer.length > 3_900_000) {
+          console.log(`[OCR] Пропускаем ${channel}_${msg.id}: слишком большой файл (${Math.round(buffer.length / 1024)}KB)`);
+        } else {
+          const base64 = buffer.toString('base64');
+          const dataUrl = `data:image/jpeg;base64,${base64}`;
+          ocrText = await extractTextFromImage(dataUrl);
+        }
+      } else {
+        console.log(`[OCR] ${channel}_${msg.id}: downloadMedia вернул null`);
       }
-    } catch {
-      mediaInfo = [{ type: 'photo' }];
+    } catch (err) {
+      console.error(`[OCR] Ошибка ${channel}_${msg.id}:`, err.message);
     }
   }
 

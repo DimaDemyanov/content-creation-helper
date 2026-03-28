@@ -74,7 +74,7 @@ async function buildPost(item, account) {
   const imageUrl = item.displayUrl || item.thumbnailUrl;
 
   if (imageUrl) {
-    ocrText = await extractTextFromImage(imageUrl, `ig_${item.shortCode}`);
+    ocrText = await extractTextFromImage(imageUrl);
   }
 
   return {
