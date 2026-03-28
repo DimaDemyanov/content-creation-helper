@@ -14,6 +14,9 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // Кэш синонимов чтобы не вызывать OpenAI на одинаковые запросы
 const synonymsCache = new Map();
 
+// Кэш гипотетических документов (HyDE)
+const hydeCache = new Map();
+
 export async function search(query, topK = 10, { postsDir } = {}) {
   const allPosts = await loadAllPosts(postsDir);
   if (allPosts.length === 0) return [];
@@ -171,6 +174,218 @@ export async function hybridSearch(query, topK = 10, { postsDir, embeddingsDir, 
     .slice(0, topK);
 
   return scored.map(({ id, score }) => ({ ...postMap.get(id), score }));
+}
+
+/**
+ * HyDE (Hypothetical Document Embeddings).
+ *
+ * Проблема обычного векторного поиска: эмбеддинг запроса "Как выйти замуж на яхте"
+ * семантически далёк от поста "устраиваю свадьбы и венчания" — разные фреймы,
+ * разные роли (спрашивающий vs организатор), разный стиль.
+ *
+ * Идея HyDE: вместо эмбеддинга запроса — просим GPT написать гипотетический пост
+ * который отвечает на этот запрос, и эмбеддим его. Гипотетический пост уже содержит
+ * "свадьба", "яхта", "море" в том же стиле что и реальные посты — его вектор
+ * гораздо ближе к релевантным документам.
+ *
+ * Ограничение: +1 вызов GPT на запрос (gpt-4o-mini, ~$0.0001), кэшируется.
+ */
+export async function vectorSearchHyDE(query, topK = 10, { postsDir, embeddingsDir } = {}) {
+  const allPosts = await loadAllPosts(postsDir);
+  if (allPosts.length === 0) return [];
+
+  const embeddings = await loadAllEmbeddings(embeddingsDir);
+  if (embeddings.size === 0) return [];
+
+  const hypothetical = await generateHypotheticalDocument(query);
+  const queryVector = await generateEmbedding(hypothetical);
+
+  return allPosts
+    .filter(p => embeddings.has(p.id))
+    .map(p => ({ post: p, score: cosineSimilarity(queryVector, embeddings.get(p.id)) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK)
+    .map(({ post, score }) => ({ ...post, score }));
+}
+
+/**
+ * Гибридный HyDE: BM25 по оригинальному запросу + векторный поиск по гипотетическому документу.
+ */
+export async function hybridSearchHyDE(query, topK = 10, { postsDir, embeddingsDir, alpha = 0.3 } = {}) {
+  const allPosts = await loadAllPosts(postsDir);
+  if (allPosts.length === 0) return [];
+
+  const embeddings = await loadAllEmbeddings(embeddingsDir);
+
+  // BM25 по оригинальному запросу (с расширением синонимами)
+  const expandedTerms = await expandQuery(query);
+  const engine = buildIndex(allPosts);
+  const bm25Raw = engine.search(expandedTerms.join(' '));
+  const bm25Max = bm25Raw.length > 0 ? bm25Raw[0][1] : 1;
+  const bm25Map = new Map(bm25Raw.map(([id, score]) => [id, score / bm25Max]));
+
+  // Векторный поиск по гипотетическому документу
+  let vectorMap = new Map();
+  if (embeddings.size > 0) {
+    const hypothetical = await generateHypotheticalDocument(query);
+    const queryVector = await generateEmbedding(hypothetical);
+    for (const post of allPosts) {
+      if (embeddings.has(post.id)) {
+        const sim = (cosineSimilarity(queryVector, embeddings.get(post.id)) + 1) / 2;
+        vectorMap.set(post.id, sim);
+      }
+    }
+  }
+
+  const postMap = new Map(allPosts.map(p => [p.id, p]));
+  const allIds = new Set([...bm25Map.keys(), ...vectorMap.keys()]);
+
+  return Array.from(allIds)
+    .map(id => ({
+      id,
+      score: alpha * (bm25Map.get(id) ?? 0) + (1 - alpha) * (vectorMap.get(id) ?? 0),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK)
+    .map(({ id, score }) => ({ ...postMap.get(id), score }));
+}
+
+/**
+ * Трёхсигнальный гибридный поиск: BM25 + стандартный вектор + HyDE вектор.
+ *
+ * Почему три сигнала:
+ * - BM25 точен для конкретных терминов ("предпродажа", "регата")
+ * - Vector (прямой эмбеддинг запроса) хорош для общей семантики
+ * - HyDE устраняет лексический/фреймовый разрыв (разные роли, разный стиль)
+ *
+ * По умолчанию alpha=0.2 (BM25), beta=0.4 (vector), gamma=0.4 (HyDE).
+ */
+export async function hybridSearchFull(query, topK = 10, { postsDir, embeddingsDir, alpha = 0.2, beta = 0.4, gamma = 0.4 } = {}) {
+  const allPosts = await loadAllPosts(postsDir);
+  if (allPosts.length === 0) return [];
+
+  const embeddings = await loadAllEmbeddings(embeddingsDir);
+
+  // BM25
+  const expandedTerms = await expandQuery(query);
+  const engine = buildIndex(allPosts);
+  const bm25Raw = engine.search(expandedTerms.join(' '));
+  const bm25Max = bm25Raw.length > 0 ? bm25Raw[0][1] : 1;
+  const bm25Map = new Map(bm25Raw.map(([id, score]) => [id, score / bm25Max]));
+
+  // Два вектора параллельно
+  const [queryVector, hypothetical] = await Promise.all([
+    generateEmbedding(query),
+    generateHypotheticalDocument(query),
+  ]);
+  const hydeVector = await generateEmbedding(hypothetical);
+
+  const vecMap = new Map();
+  const hydeMap = new Map();
+  for (const post of allPosts) {
+    if (!embeddings.has(post.id)) continue;
+    const postVec = embeddings.get(post.id);
+    vecMap.set(post.id, (cosineSimilarity(queryVector, postVec) + 1) / 2);
+    hydeMap.set(post.id, (cosineSimilarity(hydeVector, postVec) + 1) / 2);
+  }
+
+  const postMap = new Map(allPosts.map(p => [p.id, p]));
+  const allIds = new Set([...bm25Map.keys(), ...vecMap.keys()]);
+
+  return Array.from(allIds)
+    .map(id => ({
+      id,
+      score: alpha * (bm25Map.get(id) ?? 0)
+           + beta  * (vecMap.get(id)  ?? 0)
+           + gamma * (hydeMap.get(id) ?? 0),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK)
+    .map(({ id, score }) => ({ ...postMap.get(id), score }));
+}
+
+/**
+ * RRF (Reciprocal Rank Fusion) поиск.
+ *
+ * Проблема взвешенного суммирования скоров (hybridSearchFull):
+ * скоры BM25, vector и HyDE имеют разные масштабы и распределения,
+ * поэтому один сигнал может подавлять другой при неправильных весах.
+ *
+ * RRF решает это через ранги вместо скоров:
+ *   rrf_score = Σ 1/(k + rank_i)  для каждого сигнала
+ * k=60 — стандартный параметр, сглаживает влияние топ-1.
+ *
+ * Преимущества:
+ * - Не требует нормализации скоров
+ * - Равноправно объединяет сигналы разных масштабов
+ * - Хорошо работает при неоднородных корпусах
+ */
+export async function hybridSearchRRF(query, topK = 10, { postsDir, embeddingsDir, k = 60 } = {}) {
+  const allPosts = await loadAllPosts(postsDir);
+  if (allPosts.length === 0) return [];
+
+  const embeddings = await loadAllEmbeddings(embeddingsDir);
+  const postMap = new Map(allPosts.map(p => [p.id, p]));
+
+  // Параллельно: синонимы для BM25, эмбеддинг запроса, гипотетический документ
+  const [expandedTerms, queryVector, hypothetical] = await Promise.all([
+    expandQuery(query),
+    generateEmbedding(query),
+    generateHypotheticalDocument(query),
+  ]);
+  const hydeVector = await generateEmbedding(hypothetical);
+
+  // BM25 ranking
+  const engine = buildIndex(allPosts);
+  const bm25Raw = engine.search(expandedTerms.join(' '));
+  const bm25Ranks = new Map(bm25Raw.map(([id], i) => [id, i]));
+
+  // Vector ranking
+  const vecScored = allPosts
+    .filter(p => embeddings.has(p.id))
+    .map(p => ({ id: p.id, score: cosineSimilarity(queryVector, embeddings.get(p.id)) }))
+    .sort((a, b) => b.score - a.score);
+  const vecRanks = new Map(vecScored.map(({ id }, i) => [id, i]));
+
+  // HyDE ranking
+  const hydeScored = allPosts
+    .filter(p => embeddings.has(p.id))
+    .map(p => ({ id: p.id, score: cosineSimilarity(hydeVector, embeddings.get(p.id)) }))
+    .sort((a, b) => b.score - a.score);
+  const hydeRanks = new Map(hydeScored.map(({ id }, i) => [id, i]));
+
+  // RRF fusion
+  const allIds = new Set([...bm25Ranks.keys(), ...vecRanks.keys()]);
+  const scored = Array.from(allIds).map(id => {
+    const rrf = (ranks, fallback) => 1 / (k + (ranks.has(id) ? ranks.get(id) : fallback));
+    const score = rrf(bm25Ranks, allPosts.length)
+                + rrf(vecRanks,  allPosts.length)
+                + rrf(hydeRanks, allPosts.length);
+    return { id, score };
+  });
+
+  return scored
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK)
+    .map(({ id, score }) => ({ ...postMap.get(id), score }));
+}
+
+async function generateHypotheticalDocument(query) {
+  const cacheKey = query.toLowerCase().trim();
+  if (hydeCache.has(cacheKey)) return hydeCache.get(cacheKey);
+
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    max_tokens: 200,
+    messages: [{
+      role: 'user',
+      content: `Напиши короткий пост для Telegram-канала о яхтинге (50-150 слов, живой разговорный стиль, без заголовков), который максимально точно соответствует теме: "${query}".`,
+    }],
+  });
+
+  const doc = response.choices[0].message.content;
+  hydeCache.set(cacheKey, doc);
+  return doc;
 }
 
 async function loadAllPosts(postsDir = DEFAULT_POSTS_DIR) {

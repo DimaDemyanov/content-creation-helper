@@ -14,7 +14,7 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { describe, it, expect } from 'vitest';
-import { search, vectorSearch, hybridSearch, vectorSearchChunked, hybridSearchChunked } from '../search/index.js';
+import { search, vectorSearch, hybridSearch, vectorSearchHyDE, hybridSearchHyDE, hybridSearchFull, hybridSearchRRF } from '../search/index.js';
 import { loadAllEmbeddings, loadAllChunkEmbeddings } from '../search/embeddings.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -178,36 +178,70 @@ describe('Гибридный поиск по чанкам (hybridSearchChunked)'
   }
 });
 
+// --- HyDE ---
+
+describe('Векторный поиск HyDE (vectorSearchHyDE)', () => {
+  for (const { query, relevant } of TOPICS) {
+    it(query, async () => {
+      const results = await vectorSearchHyDE(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR });
+      const found = hit(results, relevant);
+      const pos = firstHitPosition(results, relevant);
+      if (!found) {
+        console.log(`  ❌ HyDE не нашёл. top-${TOP_K}:`, results.map(r => r.id));
+      } else {
+        console.log(`  ✅ HyDE pos ${pos}: ${results[pos - 1].id}`);
+      }
+      expect(found).toBe(true);
+    }, 30_000);
+  }
+});
+
+describe('Гибридный поиск HyDE (hybridSearchHyDE)', () => {
+  for (const { query, relevant } of TOPICS) {
+    it(query, async () => {
+      const results = await hybridSearchHyDE(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR });
+      const found = hit(results, relevant);
+      const pos = firstHitPosition(results, relevant);
+      if (!found) {
+        console.log(`  ❌ HybridHyDE не нашёл. top-${TOP_K}:`, results.map(r => r.id));
+      } else {
+        console.log(`  ✅ HybridHyDE pos ${pos}: ${results[pos - 1].id}`);
+      }
+      expect(found).toBe(true);
+    }, 30_000);
+  }
+});
+
 // --- Сводная таблица ---
 
 describe('Сводный отчёт Hit@5', () => {
   it('выводит таблицу по всем методам', async () => {
     const rows = [];
     for (const { query, relevant } of TOPICS) {
-      const [bm25, vec, hybrid, vecChunk, hybridChunk] = await Promise.all([
+      const [bm25, vec, hybrid, hyde, rrf] = await Promise.all([
         search(query, TOP_K, { postsDir: POSTS_DIR }),
         vectorSearch(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR }),
         hybridSearch(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR }),
-        vectorSearchChunked(query, TOP_K, { postsDir: POSTS_DIR, chunkEmbeddingsDir: CHUNK_EMBEDDINGS_DIR }),
-        hybridSearchChunked(query, TOP_K, { postsDir: POSTS_DIR, chunkEmbeddingsDir: CHUNK_EMBEDDINGS_DIR }),
+        vectorSearchHyDE(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR }),
+        hybridSearchRRF(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR }),
       ]);
       rows.push({
-        query: query.slice(0, 40),
-        bm25: hit(bm25, relevant) ? `✅${firstHitPosition(bm25, relevant)}` : '❌',
-        vec: hit(vec, relevant) ? `✅${firstHitPosition(vec, relevant)}` : '❌',
+        query:  query.slice(0, 38),
+        bm25:   hit(bm25, relevant)   ? `✅${firstHitPosition(bm25, relevant)}`   : '❌',
+        vec:    hit(vec, relevant)    ? `✅${firstHitPosition(vec, relevant)}`    : '❌',
         hybrid: hit(hybrid, relevant) ? `✅${firstHitPosition(hybrid, relevant)}` : '❌',
-        vecChunk: hit(vecChunk, relevant) ? `✅${firstHitPosition(vecChunk, relevant)}` : '❌',
-        hybChunk: hit(hybridChunk, relevant) ? `✅${firstHitPosition(hybridChunk, relevant)}` : '❌',
+        hyde:   hit(hyde, relevant)   ? `✅${firstHitPosition(hyde, relevant)}`   : '❌',
+        rrf:    hit(rrf, relevant)    ? `✅${firstHitPosition(rrf, relevant)}`    : '❌',
       });
     }
     console.table(rows);
 
     const score = (col) => rows.filter(r => r[col].startsWith('✅')).length;
     console.log(`\nИтого Hit@${TOP_K}:`);
-    console.log(`  BM25        = ${score('bm25')}/10`);
-    console.log(`  Vector      = ${score('vec')}/10`);
-    console.log(`  Hybrid      = ${score('hybrid')}/10`);
-    console.log(`  VecChunked  = ${score('vecChunk')}/10`);
-    console.log(`  HybChunked  = ${score('hybChunk')}/10`);
+    console.log(`  BM25       = ${score('bm25')}/10`);
+    console.log(`  Vector     = ${score('vec')}/10`);
+    console.log(`  Hybrid     = ${score('hybrid')}/10`);
+    console.log(`  HyDE       = ${score('hyde')}/10`);
+    console.log(`  RRF ★      = ${score('rrf')}/10`);
   }, 180_000);
 });
