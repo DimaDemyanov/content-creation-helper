@@ -6,7 +6,8 @@
     "start": "node index.js",
     "collect": "node collector/index.js --once",
     "bot": "node bot/index.js",
-    "test": "vitest run",
+    "test": "vitest run --exclude tests/search.integration.test.js",
+    "test:integration": "vitest run tests/search.integration.test.js",
     "test:watch": "vitest"
   },
   "devDependencies": {

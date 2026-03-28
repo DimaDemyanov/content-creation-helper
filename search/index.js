@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import winkBM25 from 'wink-bm25-text-search';
 import winkNLP from 'wink-nlp-utils';
 import OpenAI from 'openai';
+import { generateEmbedding, loadAllEmbeddings, cosineSimilarity } from './embeddings.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const POSTS_DIR = path.join(__dirname, '../data/posts');
@@ -104,9 +105,74 @@ async function expandQuery(query) {
     const terms = [query, ...synonyms];
     synonymsCache.set(cacheKey, terms);
     return terms;
-  } catch {
-    return [query];
+  } catch (err) {
+    throw new Error(`OpenAI недоступен: ${err.message}`);
   }
+}
+
+export async function vectorSearch(query, topK = 10) {
+  const allPosts = await loadAllPosts();
+  if (allPosts.length === 0) return [];
+
+  const embeddings = await loadAllEmbeddings();
+  if (embeddings.size === 0) return [];
+
+  const queryVector = await generateEmbedding(query);
+
+  const scored = allPosts
+    .filter(p => embeddings.has(p.id))
+    .map(p => ({ post: p, score: cosineSimilarity(queryVector, embeddings.get(p.id)) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK);
+
+  return scored.map(({ post, score }) => ({ ...post, score }));
+}
+
+export async function hybridSearch(query, topK = 10, alpha = 0.3) {
+  const allPosts = await loadAllPosts();
+  if (allPosts.length === 0) return [];
+
+  const embeddings = await loadAllEmbeddings();
+
+  const expandedTerms = await expandQuery(query);
+  const expandedQuery = expandedTerms.join(' ');
+
+  // BM25
+  const engine = buildIndex(allPosts);
+  const bm25Raw = engine.search(expandedQuery);
+
+  // Нормализуем BM25: максимальный скор = 1
+  const bm25Max = bm25Raw.length > 0 ? bm25Raw[0][1] : 1;
+  const bm25Map = new Map(bm25Raw.map(([id, score]) => [id, score / bm25Max]));
+
+  // Vector
+  let vectorMap = new Map();
+  if (embeddings.size > 0) {
+    const queryVector = await generateEmbedding(query);
+    for (const post of allPosts) {
+      if (embeddings.has(post.id)) {
+        // cosine similarity диапазон -1..1, нормализуем в 0..1
+        const sim = (cosineSimilarity(queryVector, embeddings.get(post.id)) + 1) / 2;
+        vectorMap.set(post.id, sim);
+      }
+    }
+  }
+
+  // Гибридный скор
+  const postMap = new Map(allPosts.map(p => [p.id, p]));
+  const allIds = new Set([...bm25Map.keys(), ...vectorMap.keys()]);
+
+  const scored = Array.from(allIds)
+    .map(id => {
+      const bm25 = bm25Map.get(id) ?? 0;
+      const vec = vectorMap.get(id) ?? 0;
+      const score = alpha * bm25 + (1 - alpha) * vec;
+      return { id, score };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK);
+
+  return scored.map(({ id, score }) => ({ ...postMap.get(id), score }));
 }
 
 export async function getStats() {

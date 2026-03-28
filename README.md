@@ -70,21 +70,24 @@
 - **Ежедневный сбор** — только новые посты с момента `lastCollectedAt` (дельта)
 - **Сохранение батчами** — Telegram каждые 100 постов, Instagram каждые 50, прогресс не теряется при падении
 - Состояние хранится в `data/state.json` отдельно для каждого канала
+- **Задержка между OCR** — 1.5 сек между постами при сборе Instagram, чтобы не превышать TPM-лимит OpenAI
 
 ### Поиск
 - **BM25 + лемматизация** — ранжирование постов по частоте ключевых слов с учётом длины текста
 - Лемматизация приводит слова к базовой форме ("штормовой" → "шторм")
 - **Расширение запроса через OpenAI** — перед поиском `gpt-4o-mini` генерирует синонимы в контексте яхтинга ("шторм" → шквал, буря, волнение, непогода)
 - **Очистка текста при сохранении** — удаляем эмодзи, хэштеги и спецсимволы перед индексацией, оригинал сохраняем отдельно для отображения
+- Если OpenAI недоступен — поиск бросает ошибку (без фолбека на голый запрос)
 - Библиотеки: `wink-bm25-text-search` + `@nlpjs/lang-ru`
 - Доступ через **Telegram-бота** (не веб-интерфейс)
 
-### Обработка картинок
+### Обработка картинок (OCR)
 - **OpenAI Vision** (`gpt-4o-mini`) — извлечение текста с изображений через API
 - Логика: скачиваем фото в память → отправляем как base64 в OpenAI Vision → `ocrText` сохраняется в пост
 - Если текста нет — GPT отвечает «нет» и `ocrText = null`
 - Поддерживает Telegram (buffer → base64) и Instagram (публичный URL → base64)
 - Пропускает изображения > 3.9 MB
+- **Rate limit** — при 429 экспоненциальный backoff: 1s → 2s → 4s → 8s → 16s → 32s → 60s → ...
 
 ### AI-интеграция
 - **OpenAI API** (`gpt-4o-mini`) — используется в трёх местах:
@@ -100,6 +103,7 @@
 ### Известные ограничения
 - **Стемминг** — Porter stemmer английский, русские слова индексируются в точной форме ("шторма" и "шторм" — разные токены). OpenAI-расширение синонимов частично компенсирует это.
 - **Двуязычность** — синонимы генерируются в яхтенном контексте, для смешанного RU/EN контента точность ниже.
+- **Instagram CDN-ссылки** — URL картинок имеют срок жизни (~24-48ч). OCR-бэкфилл нужно запускать вскоре после сбора.
 
 ---
 
@@ -128,7 +132,7 @@ Telegram каналы       Instagram аккаунты
       │
       ▼
 [OpenAI API]
-  Синонимы для поиска + генерация постов
+  Синонимы для поиска + OCR Vision + генерация постов
 ```
 
 ---
@@ -174,28 +178,32 @@ Telegram каналы       Instagram аккаунты
 ```
 content-creation-helper/
 ├── README.md
-├── .env                  # credentials (не в git!)
-├── config.json           # список каналов и настройки
+├── .env                        # credentials (не в git!)
+├── config.json                 # список каналов и настройки
 ├── auth/
-│   └── telegram.js       # одноразовая авторизация GramJS
+│   └── telegram.js             # одноразовая авторизация GramJS
 ├── collector/
-│   ├── index.js          # оркестратор + cron
-│   ├── telegram.js       # GramJS сбор
-│   └── instagram.js      # Apify сбор
+│   ├── index.js                # оркестратор + cron
+│   ├── telegram.js             # GramJS сбор
+│   └── instagram.js            # Apify сбор
 ├── search/
-│   └── index.js          # BM25 + лемматизация + OpenAI
+│   └── index.js                # BM25 + лемматизация + OpenAI
 ├── bot/
-│   └── index.js          # Telegram бот
+│   └── index.js                # Telegram бот
 ├── utils/
-│   ├── textClean.js      # очистка текста от эмодзи/хэштегов
-│   └── ocr.js            # OpenAI Vision OCR
+│   ├── textClean.js            # очистка текста от эмодзи/хэштегов
+│   └── ocr.js                  # OpenAI Vision OCR с backoff
+├── scripts/
+│   └── backfill-ocr.js         # обновление ocrText для существующих постов
+├── docs/
+│   └── vector-search.md        # план реализации векторного поиска
 ├── tests/
 │   ├── textClean.test.js
 │   ├── search.test.js
 │   └── collector.test.js
 └── data/
-    ├── state.json        # per-channel состояние сбора
-    └── posts/            # JSON файлы с постами по каналам
+    ├── state.json              # per-channel состояние сбора
+    └── posts/                  # JSON файлы с постами по каналам
 ```
 
 ---
@@ -215,6 +223,11 @@ node bot/index.js
 # 4. Запустить сбор вручную (опционально)
 node collector/index.js --once
 
-# 5. Запустить тесты
+# 5. Обновить OCR для существующих постов
+node --env-file=.env scripts/backfill-ocr.js --source instagram
+node --env-file=.env scripts/backfill-ocr.js --source telegram
+node --env-file=.env scripts/backfill-ocr.js --channel seapinta  # один канал
+
+# 6. Запустить тесты
 npm test
 ```

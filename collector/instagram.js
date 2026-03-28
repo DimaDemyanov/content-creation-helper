@@ -57,6 +57,7 @@ async function fetchAndSaveAccountPosts(account, since, limit, key) {
     for (const item of filtered.slice(i, i + BATCH_SIZE)) {
       const post = await buildPost(item, account);
       batch.push(post);
+      if (item.displayUrl || item.thumbnailUrl) await sleep(1500);
     }
     await savePosts(key, batch);
     totalCollected += batch.length;
@@ -134,4 +135,8 @@ async function computeDownloadedStats(key) {
     dateFrom: new Date(Math.min(...dates)).toISOString(),
     dateTo: new Date(Math.max(...dates)).toISOString(),
   };
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }

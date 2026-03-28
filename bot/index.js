@@ -1,8 +1,14 @@
 import 'dotenv/config';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import TelegramBot from 'node-telegram-bot-api';
 import OpenAI from 'openai';
 import { search, getStats } from '../search/index.js';
 import { collect, addChannel, readState } from '../collector/index.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const POSTS_DIR = path.join(__dirname, '../data/posts');
 
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -117,6 +123,9 @@ bot.onText(/\/status/, async (msg) => {
       return bot.sendMessage(chatId, 'Каналов пока нет.');
     }
 
+    // OCR-статистика из файлов постов
+    const ocrStats = await loadOcrStats();
+
     const lines = entries.map(([ch, s]) => {
       const lastSync = s.lastCollectedAt ? formatDate(s.lastCollectedAt) : 'никогда';
       const archiveStatus = s.allPostsDownloaded ? 'полный' : 'неполный';
@@ -127,17 +136,31 @@ bot.onText(/\/status/, async (msg) => {
         ? `${formatDate(s.channelDateFrom)} — ${formatDate(s.channelDateTo)}`
         : 'нет данных';
       const channelTotal = s.channelTotalPosts != null ? s.channelTotalPosts : '?';
+      const downloadProgress = s.channelTotalPosts
+        ? ` (${Math.round((s.totalPosts / s.channelTotalPosts) * 100)}%)`
+        : '';
+
+      const ocr = ocrStats[ch];
+      const ocrLine = ocr && ocr.withMedia > 0
+        ? `  OCR: ${ocr.withOcr}/${ocr.withMedia} картинок (${Math.round((ocr.withOcr / ocr.withMedia) * 100)}%)`
+        : '';
 
       return [
         `📌 ${ch} [${s.source}]`,
-        `  Скачано: ${s.totalPosts} постов (${downloadedRange})`,
-        `  На канале: ${channelTotal} постов (${channelRange})`,
+        `  Скачано: ${s.totalPosts}${downloadProgress} из ${channelTotal} постов`,
+        `  Период: ${downloadedRange}`,
         `  Архив: ${archiveStatus} | Последний сбор: ${lastSync}`,
-      ].join('\n');
+        ocrLine,
+      ].filter(Boolean).join('\n');
     });
 
     const total = entries.reduce((sum, [, s]) => sum + (s.totalPosts || 0), 0);
+    const totalOcrMedia = Object.values(ocrStats).reduce((sum, o) => sum + o.withMedia, 0);
+    const totalOcrDone = Object.values(ocrStats).reduce((sum, o) => sum + o.withOcr, 0);
     lines.push('', `Всего: ${total} постов`);
+    if (totalOcrMedia > 0) {
+      lines.push(`OCR: ${totalOcrDone}/${totalOcrMedia} картинок (${Math.round((totalOcrDone / totalOcrMedia) * 100)}%)`);
+    }
 
     bot.sendMessage(chatId, lines.join('\n'));
   } catch (err) {
@@ -164,6 +187,24 @@ bot.onText(/\/addchannel (telegram|instagram) (.+)/, async (msg, match) => {
     bot.sendMessage(chatId, `Ошибка при добавлении канала: ${err.message}`);
   }
 });
+
+async function loadOcrStats() {
+  const stats = {};
+  let files = [];
+  try { files = await fs.readdir(POSTS_DIR); } catch {}
+  for (const file of files) {
+    if (!file.endsWith('.json')) continue;
+    const channel = file.replace('.json', '');
+    try {
+      const posts = JSON.parse(await fs.readFile(path.join(POSTS_DIR, file), 'utf-8'));
+      stats[channel] = {
+        withMedia: posts.filter(p => p.media).length,
+        withOcr: posts.filter(p => p.ocrText).length,
+      };
+    } catch {}
+  }
+  return stats;
+}
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString('ru-RU', {
