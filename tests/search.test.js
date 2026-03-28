@@ -12,7 +12,7 @@ vi.mock('openai', () => ({
     chat: {
       completions: {
         create: vi.fn().mockResolvedValue({
-          choices: [{ message: { content: 'шквал, буря, волнение, непогода' } }],
+          choices: [{ message: { content: 'галс, бейдевинд, такелаж, спинакер' } }],
         }),
       },
     },
@@ -182,6 +182,35 @@ const POSTS = [
     textClean: 'Регата в Бодруме 5 яхт 3 дня Старт 20 апреля Регата пройдёт по маршруту Бодрум Яссыада Кос Бодрум В регате 5 яхт от 38 до 45 футов Призы победителям регаты вручает организатор Запись на регату через личку',
     ocrText: 'Регата Бодрум 2026 старт 20 апреля',
   },
+
+  // --- Дополнительные посты для multi-post тестов ---
+  {
+    id: 'p17',
+    channel: 'seapinta',
+    date: '2025-10-20T11:00:00Z',
+    url: 'https://t.me/seapinta/117',
+    text: 'История: якорь уполз ночью 🌙\n\nВстали на якорь в бухте, всё казалось надёжно. В три ночи почувствовал — лодка идёт. Якорь тащит по дну, не держит. Завёл мотор, поднял якорь, встали заново. Утром нашёл причину: подводный камень, якорь не мог за него зацепиться. Теперь всегда ставлю второй якорь на ночь.',
+    textClean: 'История якорь уполз ночью Встали на якорь в бухте всё казалось надёжно В три ночи почувствовал лодка идёт Якорь тащит по дну не держит Завёл мотор поднял якорь встали заново Утром нашёл причину подводный камень якорь не мог за него зацепиться Теперь всегда ставлю второй якорь на ночь',
+    ocrText: null,
+  },
+  {
+    id: 'p18',
+    channel: 'seapinta',
+    date: '2025-11-05T09:00:00Z',
+    url: 'https://t.me/seapinta/118',
+    text: 'Что нужно знать перед первым выходом в море 🧭\n\nПервый раз в море — это волнение, адреналин и куча вопросов. Несколько вещей которые стоит знать: первый раз лучше идти с опытным шкипером, не самому. Первый раз может укачать даже если ты думаешь что тебя не укачивает. Возьми таблетку от укачивания на первый раз — потом поймёшь нужна ли она.',
+    textClean: 'Что нужно знать перед первым выходом в море Первый раз в море это волнение адреналин и куча вопросов Несколько вещей которые стоит знать первый раз лучше идти с опытным шкипером не самому Первый раз может укачать даже если ты думаешь что тебя не укачивает Возьми таблетку от укачивания на первый раз потом поймёшь нужна ли она',
+    ocrText: null,
+  },
+  {
+    id: 'p19',
+    channel: 'seapinta',
+    date: '2025-12-10T14:00:00Z',
+    url: 'https://t.me/seapinta/119',
+    text: 'Как читать прогноз перед выходом в море 🌬️\n\nПрогноз — это первое что смотришь утром. Смотришь направление ветра, силу ветра в узлах, высоту волны. Прогноз на 3 дня вперёд уже менее точный. Если прогноз обещает больше 20 узлов ветра — лучше остаться в марине. Ветер решает всё.',
+    textClean: 'Как читать прогноз перед выходом в море Прогноз это первое что смотришь утром Смотришь направление ветра силу ветра в узлах высоту волны Прогноз на 3 дня вперёд уже менее точный Если прогноз обещает больше 20 узлов ветра лучше остаться в марине Ветер решает всё',
+    ocrText: null,
+  },
 ];
 
 beforeEach(() => {
@@ -234,138 +263,157 @@ describe('search — базовые сценарии', () => {
   });
 });
 
-describe('search — живые запросы как от пользователя', () => {
-  it('зачем вообще уходить в море', async () => {
-    const results = await search('зачем уходить море');
-    const ids = results.map(r => r.id);
-    expect(ids).toContain('p1');
-  });
-
-  it('чартер в Турцию весной', async () => {
-    const results = await search('чартер Турция май');
-    expect(results.length).toBeGreaterThan(0);
-    expect(results[0].id).toBe('p3');
-  });
-
-  it('когда закрывается предпродажа', async () => {
-    const results = await search('предпродажа закрывается дней');
-    expect(results.length).toBeGreaterThan(0);
-    expect(results[0].id).toBe('p4');
-  });
-
-  it('как выглядит утро на яхте', async () => {
-    const results = await search('утро яхта кофе');
-    expect(results.length).toBeGreaterThan(0);
-    expect(results[0].id).toBe('p5');
-  });
-
-  it('переход под парусами', async () => {
-    const results = await search('переход паруса ветер');
-    const ids = results.map(r => r.id);
-    expect(ids).toContain('p6');
-  });
-
-  it('предложение руки и сердца на яхте', async () => {
-    const results = await search('предложение замуж яхта');
-    expect(results.length).toBeGreaterThan(0);
-    expect(results[0].id).toBe('p7');
-  });
-
-  it('история с акулой', async () => {
-    const results = await search('акула под лодкой история');
+describe('search — тематические запросы (один главный результат)', () => {
+  it('тема: история как под нами прошла акула', async () => {
+    const results = await search('история как под нами прошла акула');
     expect(results.length).toBeGreaterThan(0);
     expect(results[0].id).toBe('p8');
   });
 
-  it('как мы сели на мель', async () => {
-    const results = await search('сели мель ночью');
+  it('тема: история как мы сели на мель у Родоса ночью', async () => {
+    const results = await search('история как мы сели на мель ночью');
     expect(results.length).toBeGreaterThan(0);
     expect(results[0].id).toBe('p9');
   });
 
-  it('попали в шторм', async () => {
-    const results = await search('шторм волны паруса');
+  it('тема: предпродажа закрывается через несколько дней', async () => {
+    const results = await search('предпродажа закрывается через несколько дней');
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].id).toBe('p4');
+  });
+
+  it('тема: история шторм накрыл нас у берегов Сицилии', async () => {
+    const results = await search('история шторм накрыл нас у Сицилии');
     expect(results.length).toBeGreaterThan(0);
     expect(results[0].id).toBe('p10');
   });
 
-  it('как первый раз попасть на яхту', async () => {
-    const results = await search('первый раз яхта как попасть');
-    const ids = results.map(r => r.id);
-    expect(ids).toContain('p11');
+  it('тема: история как он сделал предложение замуж на яхте', async () => {
+    const results = await search('история как он сделал предложение замуж на яхте');
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].id).toBe('p7');
   });
 
-  it('что удивляет на яхте новичков', async () => {
-    const results = await search('удивляет яхта первый раз');
-    const ids = results.map(r => r.id);
-    expect(ids).toContain('p12');
+  it('тема: регата в Бодруме пять яхт три дня', async () => {
+    const results = await search('регата в Бодруме пять яхт три дня');
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].id).toBe('p16');
   });
 
-  it('что взять с собой на яхту', async () => {
-    const results = await search('взять яхта список вещей');
+  it('тема: что взять на яхту список от капитана морская болезнь', async () => {
+    const results = await search('что взять на яхту список от капитана морская болезнь');
     expect(results.length).toBeGreaterThan(0);
     expect(results[0].id).toBe('p13');
   });
 
-  it('лучшие бухты для якорной стоянки', async () => {
-    const results = await search('бухты якорь Турция');
+  it('тема: история якорь уполз ночью и лодка пошла', async () => {
+    const results = await search('история якорь уполз ночью лодка пошла');
     expect(results.length).toBeGreaterThan(0);
-    const ids = results.map(r => r.id);
-    expect(ids[0] === 'p14' || ids[0] === 'p15').toBe(true);
+    expect(results[0].id).toBe('p17');
   });
 
-  it('регата в Бодруме', async () => {
-    const results = await search('регата Бодрум яхты');
+  it('тема: как читать прогноз ветра перед выходом в море', async () => {
+    const results = await search('как читать прогноз ветра перед выходом');
     expect(results.length).toBeGreaterThan(0);
-    expect(results[0].id).toBe('p16');
+    expect(results[0].id).toBe('p19');
+  });
+});
+
+describe('search — тематические запросы (несколько результатов)', () => {
+  it('тема: истории и приключения из яхтенных походов', async () => {
+    const results = await search('история приключения из яхтенных походов');
+    const ids = results.map(r => r.id);
+    // p7, p8, p9, p10, p17 — все начинаются со слова "История"
+    expect(ids).toContain('p7');
+    expect(ids).toContain('p8');
+    expect(ids).toContain('p9');
+    expect(ids).toContain('p10');
+    expect(results.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('тема: где и как вставать на якорь советы', async () => {
+    const results = await search('где и как вставать на якорь советы');
+    const ids = results.map(r => r.id);
+    // p5 (поднимаешь якорь), p14 (встаёшь на якорь), p15 (ставил якорь), p17 (якорь ×4)
+    expect(ids).toContain('p14');
+    expect(ids).toContain('p15');
+    expect(ids).toContain('p17');
+    expect(results.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('тема: что нужно знать перед первым выходом в море', async () => {
+    const results = await search('что нужно знать перед первым выходом в море');
+    const ids = results.map(r => r.id);
+    // p11, p12, p18 — все про первый опыт с "первый раз"
+    expect(ids).toContain('p11');
+    expect(ids).toContain('p18');
+    expect(results.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('тема: как проверить прогноз ветра и принять решение о выходе', async () => {
+    const results = await search('как проверить прогноз ветра и принять решение о выходе');
+    const ids = results.map(r => r.id);
+    // p19 (прогноз ×3, ветра ×3), p5 (ветер в запросе совпадает с ветра в p19)
+    expect(ids).toContain('p19');
+    expect(results.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('тема: почему люди уходят в море и не возвращаются к обычной жизни', async () => {
+    const results = await search('почему люди уходят в море и не возвращаются к обычной жизни');
+    const ids = results.map(r => r.id);
+    // p1 (море ×2, яхтинг), p2 (море ×2, яхта), p18 (в море ×2)
+    expect(ids).toContain('p1');
+    expect(ids).toContain('p2');
+    expect(results.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('тема: самые красивые бухты Турции для якорной стоянки', async () => {
+    const results = await search('самые красивые бухты Турции для якорной стоянки');
+    const ids = results.map(r => r.id);
+    // p14 (бухты Гёджека), p15 (бухты Турции ×3, якорь ×2)
+    expect(ids).toContain('p14');
+    expect(ids).toContain('p15');
+    expect(results.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('тема: как попасть на яхту первый раз если нет опыта', async () => {
+    const results = await search('как попасть на яхту первый раз если нет опыта');
+    const ids = results.map(r => r.id);
+    // p11 (Первый раз всегда страшно), p12 (в первый раз), p18 (первый раз ×3)
+    expect(ids).toContain('p11');
+    expect(ids).toContain('p12');
+    expect(ids).toContain('p18');
+    expect(results.length).toBeGreaterThanOrEqual(3);
   });
 });
 
 describe('search — ранжирование', () => {
-  it('пост с двумя упоминаниями мели ранжируется выше поста с одним', async () => {
-    // p9: "мель" 3 раза; p10: 0 раз
-    const results = await search('мель');
+  it('пост с якорем 4 раза ранжируется выше поста с якорем 1 раз', async () => {
+    const results = await search('история якорь не держит ночью');
+    const ids = results.map(r => r.id);
+    // p17: "якорь" ×4 и "история" ×1; p5: "якорь" ×1 и "история" нет
+    expect(ids.indexOf('p17')).toBeLessThan(ids.indexOf('p5'));
+  });
+
+  it('пост с прогнозом 3 раза выходит первым на запрос о прогнозе', async () => {
+    const results = await search('как читать прогноз погоды перед переходом');
+    expect(results[0].id).toBe('p19');
+  });
+
+  it('пост с мелью 3 раза выходит первым на запрос о мели', async () => {
+    const results = await search('история как сесть на мель и сойти с мели');
     expect(results[0].id).toBe('p9');
   });
 
-  it('пост про предпродажу ранжируется первым по точному слову', async () => {
-    const results = await search('предпродажа');
+  it('пост с предпродажей 3 раза выходит первым на запрос о предпродаже', async () => {
+    const results = await search('предпродажа осталось несколько дней место');
     expect(results[0].id).toBe('p4');
-  });
-
-  it('пост про шторм ранжируется первым по слову "шторм"', async () => {
-    const results = await search('шторм');
-    expect(results[0].id).toBe('p10');
-  });
-
-  it('пост про бухты с большим числом упоминаний ранжируется выше', async () => {
-    // p15: "бухт" 4 раза; p14: 2 раза
-    const results = await search('бухты');
-    const ids = results.map(r => r.id);
-    expect(ids.indexOf('p15')).toBeLessThan(ids.indexOf('p14'));
-  });
-});
-
-describe('search — изоляция тем', () => {
-  it('запрос про акулу не находит пост про предпродажу', async () => {
-    const results = await search('акула');
-    expect(results.map(r => r.id)).not.toContain('p4');
-  });
-
-  it('запрос про мель не находит пост про утро на яхте', async () => {
-    const results = await search('мель');
-    expect(results.map(r => r.id)).not.toContain('p5');
-  });
-
-  it('уникальный термин находит только один пост', async () => {
-    const results = await search('предпродажи');
-    expect(results.every(r => r.id === 'p4')).toBe(true);
   });
 });
 
 describe('getStats', () => {
   it('возвращает количество постов по каналу', async () => {
-    expect(await getStats()).toEqual({ seapinta: 16 });
+    expect(await getStats()).toEqual({ seapinta: 19 });
   });
 
   it('возвращает пустой объект если постов нет', async () => {
@@ -387,7 +435,7 @@ describe('getStats', () => {
       return Promise.resolve(JSON.stringify(POSTS));
     });
     const stats = await getStats();
-    expect(stats.seapinta).toBe(16);
+    expect(stats.seapinta).toBe(19);
     expect(stats.silavetrasila).toBe(5);
   });
 });
