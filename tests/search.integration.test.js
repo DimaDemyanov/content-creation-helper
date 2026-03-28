@@ -11,9 +11,15 @@
  *     Если эмбеддинги не сгенерированы: node --env-file=.env scripts/backfill-embeddings.js
  */
 
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { describe, it, expect } from 'vitest';
 import { search, vectorSearch, hybridSearch } from '../search/index.js';
 import { loadAllEmbeddings } from '../search/embeddings.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const POSTS_DIR = path.join(__dirname, 'fixtures/posts');
+const EMBEDDINGS_DIR = path.join(__dirname, 'fixtures/embeddings');
 
 // Ground truth: для каждой темы — какие посты должны попасть в top-5
 // Достаточно попадания хотя бы одного из списка (Hit@5)
@@ -76,7 +82,7 @@ function firstHitPosition(results, relevant) {
 describe('BM25 поиск (search)', () => {
   for (const { query, relevant } of TOPICS) {
     it(query, async () => {
-      const results = await search(query, TOP_K);
+      const results = await search(query, TOP_K, { postsDir: POSTS_DIR });
       const found = hit(results, relevant);
       const pos = firstHitPosition(results, relevant);
       if (!found) {
@@ -93,13 +99,13 @@ describe('BM25 поиск (search)', () => {
 
 describe('Векторный поиск (vectorSearch)', () => {
   it('эмбеддинги загружены', async () => {
-    const embeddings = await loadAllEmbeddings();
+    const embeddings = await loadAllEmbeddings(EMBEDDINGS_DIR);
     expect(embeddings.size).toBeGreaterThan(0);
   });
 
   for (const { query, relevant } of TOPICS) {
     it(query, async () => {
-      const results = await vectorSearch(query, TOP_K);
+      const results = await vectorSearch(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR });
       const found = hit(results, relevant);
       const pos = firstHitPosition(results, relevant);
       if (!found) {
@@ -117,7 +123,7 @@ describe('Векторный поиск (vectorSearch)', () => {
 describe('Гибридный поиск (hybridSearch)', () => {
   for (const { query, relevant } of TOPICS) {
     it(query, async () => {
-      const results = await hybridSearch(query, TOP_K);
+      const results = await hybridSearch(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR });
       const found = hit(results, relevant);
       const pos = firstHitPosition(results, relevant);
       if (!found) {
@@ -137,9 +143,9 @@ describe('Сводный отчёт Hit@5', () => {
     const rows = [];
     for (const { query, relevant } of TOPICS) {
       const [bm25, vec, hybrid] = await Promise.all([
-        search(query, TOP_K),
-        vectorSearch(query, TOP_K),
-        hybridSearch(query, TOP_K),
+        search(query, TOP_K, { postsDir: POSTS_DIR }),
+        vectorSearch(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR }),
+        hybridSearch(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR }),
       ]);
       rows.push({
         query: query.slice(0, 45),

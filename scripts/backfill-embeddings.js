@@ -13,11 +13,17 @@ import { fileURLToPath } from 'url';
 import { generateEmbeddings, saveEmbeddings, loadAllEmbeddings } from '../search/embeddings.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const POSTS_DIR = path.join(__dirname, '../data/posts');
+
+function getArg(name) {
+  return process.argv.find((_, i) => process.argv[i - 1] === name) || null;
+}
+
+const POSTS_DIR = getArg('--postsDir') || path.join(__dirname, '../data/posts');
+const EMBEDDINGS_DIR = getArg('--embeddingsDir') || null; // null = default from embeddings.js
 const BATCH_SIZE = 100;
 const DELAY_MS = 500;
 
-const channelFilter = process.argv.find((_, i) => process.argv[i - 1] === '--channel') || null;
+const channelFilter = getArg('--channel');
 
 function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
@@ -27,7 +33,7 @@ function postToText(post) {
   return [post.textClean, post.ocrText].filter(Boolean).join(' ').trim();
 }
 
-const existingEmbeddings = await loadAllEmbeddings();
+const existingEmbeddings = await loadAllEmbeddings(EMBEDDINGS_DIR || undefined);
 console.log(`Загружено существующих эмбеддингов: ${existingEmbeddings.size}`);
 
 const files = (await fs.readdir(POSTS_DIR)).filter(f => f.endsWith('.json'));
@@ -58,7 +64,7 @@ for (const file of files) {
     try {
       const vectors = await generateEmbeddings(texts);
       const entries = batch.map((p, j) => ({ id: p.id, vector: vectors[j] }));
-      await saveEmbeddings(channel, entries);
+      await saveEmbeddings(channel, entries, EMBEDDINGS_DIR || undefined);
       processed += batch.length;
       console.log(`  [${channel}] ${processed}/${todo.length}`);
     } catch (err) {

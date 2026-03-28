@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url';
 import OpenAI from 'openai';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const EMBEDDINGS_DIR = path.join(__dirname, '../data/embeddings');
+const DEFAULT_EMBEDDINGS_DIR = path.join(__dirname, '../data/embeddings');
 const MODEL = 'text-embedding-3-small';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -32,18 +32,18 @@ export function cosineSimilarity(a, b) {
 }
 
 // Загружает все эмбеддинги в Map<id, vector>
-export async function loadAllEmbeddings() {
+export async function loadAllEmbeddings(embeddingsDir = DEFAULT_EMBEDDINGS_DIR) {
   const map = new Map();
   let files;
   try {
-    files = await fs.readdir(EMBEDDINGS_DIR);
+    files = await fs.readdir(embeddingsDir);
   } catch {
     return map;
   }
   for (const file of files) {
     if (!file.endsWith('.json')) continue;
     try {
-      const raw = await fs.readFile(path.join(EMBEDDINGS_DIR, file), 'utf-8');
+      const raw = await fs.readFile(path.join(embeddingsDir, file), 'utf-8');
       const entries = JSON.parse(raw);
       for (const { id, vector } of entries) {
         map.set(id, vector);
@@ -53,9 +53,9 @@ export async function loadAllEmbeddings() {
   return map;
 }
 
-export async function saveEmbeddings(channel, newEntries) {
-  await fs.mkdir(EMBEDDINGS_DIR, { recursive: true });
-  const filePath = path.join(EMBEDDINGS_DIR, `${channel}.json`);
+export async function saveEmbeddings(channel, newEntries, embeddingsDir = DEFAULT_EMBEDDINGS_DIR) {
+  await fs.mkdir(embeddingsDir, { recursive: true });
+  const filePath = path.join(embeddingsDir, `${channel}.json`);
 
   let existing = [];
   try {
