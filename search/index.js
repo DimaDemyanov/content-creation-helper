@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import winkBM25 from 'wink-bm25-text-search';
 import winkNLP from 'wink-nlp-utils';
 import OpenAI from 'openai';
+import { StemmerRu, StopwordsRu } from '@nlpjs/lang-ru';
 import { generateEmbedding, loadAllEmbeddings, loadAllChunkEmbeddings, cosineSimilarity } from './embeddings.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -11,11 +12,18 @@ const DEFAULT_POSTS_DIR = path.join(__dirname, '../data/posts');
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// Русский стеммер и стоп-слова
+const ruStemmer = new StemmerRu();
+const ruStopwordsDict = new StopwordsRu().dictionary;
+
 // Кэш синонимов чтобы не вызывать OpenAI на одинаковые запросы
 const synonymsCache = new Map();
 
 // Кэш гипотетических документов (HyDE)
 const hydeCache = new Map();
+
+// Кэш переписанных запросов для эмбеддингов
+const rewriteCache = new Map();
 
 export async function search(query, topK = 10, { postsDir } = {}) {
   const allPosts = await loadAllPosts(postsDir);
@@ -42,7 +50,8 @@ export async function vectorSearch(query, topK = 10, { postsDir, embeddingsDir }
   const embeddings = await loadAllEmbeddings(embeddingsDir);
   if (embeddings.size === 0) return [];
 
-  const queryVector = await generateEmbedding(query);
+  const rewritten = await rewriteQueryForEmbedding(query);
+  const queryVector = await generateEmbedding(rewritten);
 
   const scored = allPosts
     .filter(p => embeddings.has(p.id))
@@ -68,7 +77,8 @@ export async function vectorSearchChunked(query, topK = 10, { postsDir, chunkEmb
   const chunkMap = await loadAllChunkEmbeddings(chunkEmbeddingsDir);
   if (chunkMap.size === 0) return [];
 
-  const queryVector = await generateEmbedding(query);
+  const rewritten = await rewriteQueryForEmbedding(query);
+  const queryVector = await generateEmbedding(rewritten);
   const postMap = new Map(allPosts.map(p => [p.id, p]));
 
   // Для каждого поста берём максимальный скор среди всех его чанков
@@ -107,7 +117,8 @@ export async function hybridSearchChunked(query, topK = 10, { postsDir, chunkEmb
   // Vector (по чанкам)
   let vectorMap = new Map();
   if (chunkMap.size > 0) {
-    const queryVector = await generateEmbedding(query);
+    const rewritten = await rewriteQueryForEmbedding(query);
+    const queryVector = await generateEmbedding(rewritten);
     for (const [postId, chunks] of chunkMap) {
       // cosine similarity диапазон -1..1, нормализуем в 0..1
       const best = Math.max(...chunks.map(c => cosineSimilarity(queryVector, c.vector)));
@@ -149,7 +160,8 @@ export async function hybridSearch(query, topK = 10, { postsDir, embeddingsDir, 
   // Vector
   let vectorMap = new Map();
   if (embeddings.size > 0) {
-    const queryVector = await generateEmbedding(query);
+    const rewritten = await rewriteQueryForEmbedding(query);
+    const queryVector = await generateEmbedding(rewritten);
     for (const post of allPosts) {
       if (embeddings.has(post.id)) {
         // cosine similarity диапазон -1..1, нормализуем в 0..1
@@ -274,10 +286,11 @@ export async function hybridSearchFull(query, topK = 10, { postsDir, embeddingsD
   const bm25Map = new Map(bm25Raw.map(([id, score]) => [id, score / bm25Max]));
 
   // Два вектора параллельно
-  const [queryVector, hypothetical] = await Promise.all([
-    generateEmbedding(query),
+  const [rewritten, hypothetical] = await Promise.all([
+    rewriteQueryForEmbedding(query),
     generateHypotheticalDocument(query),
   ]);
+  const queryVector = await generateEmbedding(rewritten);
   const hydeVector = await generateEmbedding(hypothetical);
 
   const vecMap = new Map();
@@ -327,13 +340,16 @@ export async function hybridSearchRRF(query, topK = 10, { postsDir, embeddingsDi
   const embeddings = await loadAllEmbeddings(embeddingsDir);
   const postMap = new Map(allPosts.map(p => [p.id, p]));
 
-  // Параллельно: синонимы для BM25, эмбеддинг запроса, гипотетический документ
-  const [expandedTerms, queryVector, hypothetical] = await Promise.all([
+  // Параллельно: синонимы для BM25, переписанный запрос, гипотетический документ
+  const [expandedTerms, rewritten, hypothetical] = await Promise.all([
     expandQuery(query),
-    generateEmbedding(query),
+    rewriteQueryForEmbedding(query),
     generateHypotheticalDocument(query),
   ]);
-  const hydeVector = await generateEmbedding(hypothetical);
+  const [queryVector, hydeVector] = await Promise.all([
+    generateEmbedding(rewritten),
+    generateEmbedding(hypothetical),
+  ]);
 
   // BM25 ranking
   const engine = buildIndex(allPosts);
@@ -368,6 +384,32 @@ export async function hybridSearchRRF(query, topK = 10, { postsDir, embeddingsDi
     .sort((a, b) => b.score - a.score)
     .slice(0, topK)
     .map(({ id, score }) => ({ ...postMap.get(id), score }));
+}
+
+/**
+ * Переписывает запрос для эмбеддинга: убирает вопросительную структуру,
+ * оставляет ключевые понятия в виде существительных/прилагательных.
+ *
+ * Проблема: запрос "Как выйти замуж на яхте" эмбеддится с паттерном "Как X на яхте",
+ * и вектор ближе к другим "Как X на яхте"-постам, чем к постам о свадьбе.
+ * Переписанный запрос "свадьба на яхте, замужество, венчание" эмбеддится семантически точнее.
+ */
+async function rewriteQueryForEmbedding(query) {
+  const cacheKey = query.toLowerCase().trim();
+  if (rewriteCache.has(cacheKey)) return rewriteCache.get(cacheKey);
+
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    max_tokens: 60,
+    messages: [{
+      role: 'user',
+      content: `Перепиши этот поисковый запрос как ключевые понятия (существительные и прилагательные), убрав вопросительную или повелительную структуру. Только слова и словосочетания через запятую, без пояснений. Запрос: "${query}"`,
+    }],
+  });
+
+  const rewritten = response.choices[0].message.content.trim();
+  rewriteCache.set(cacheKey, rewritten);
+  return rewritten;
 }
 
 async function generateHypotheticalDocument(query) {
@@ -413,8 +455,8 @@ function buildIndex(posts) {
     winkNLP.string.lowerCase,
     winkNLP.string.removeExtraSpaces,
     (s) => (s.match(/[\p{L}\p{N}]+/gu) || []),
-    winkNLP.tokens.removeWords,
-    winkNLP.tokens.stem,
+    (tokens) => tokens.filter(t => !ruStopwordsDict[t]),
+    (tokens) => ruStemmer.stem(tokens),
   ]);
   for (const post of posts) {
     engine.addDoc(
