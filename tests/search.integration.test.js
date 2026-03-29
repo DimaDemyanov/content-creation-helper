@@ -132,11 +132,17 @@ const TOPICS = [
   },
 ];
 
-const TOP_K = 5;
+const TOP_K = 10;
 
 function hit(results, relevant) {
   const ids = new Set(results.map(r => r.id));
   return relevant.some(id => ids.has(id));
+}
+
+// Сколько постов из списка найдено в results
+function countHits(results, list) {
+  const ids = new Set(results.map(r => r.id));
+  return list.filter(id => ids.has(id)).length;
 }
 
 function firstHitPosition(results, relevant) {
@@ -298,12 +304,12 @@ describe('Сводный отчёт Hit@5', () => {
         hybridSearchRRF(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR }),
       ]);
       const fmt = (results, rel, must) => {
-        const pos = firstHitPosition(results, rel);
-        const strict = hit(results, must) ? '★' : ' ';
-        return pos > 0 ? `${strict}✅${pos}` : '❌';
+        const relFound = countHits(results, rel);
+        const mustFound = countHits(results, must);
+        return `rel:${relFound}/${rel.length} must:${mustFound}/${must.length}`;
       };
       rows.push({
-        query:  query.slice(0, 36),
+        query:  query.slice(0, 30),
         bm25:   fmt(bm25,   relevant, mustFind),
         vec:    fmt(vec,    relevant, mustFind),
         hybrid: fmt(hybrid, relevant, mustFind),
@@ -319,18 +325,32 @@ describe('Сводный отчёт Hit@5', () => {
       });
     }
 
-    console.log('\nЛегенда: ★✅N = mustFind найден на позиции N | ✅N = relevant найден | ❌ = не найден\n');
+    console.log(`\nЛегенда: rel:X/Y = X из Y релевантных найдено в top-${TOP_K} | must:X/Y = X из Y mustFind найдено\n`);
     console.table(rows);
 
-    const hit5 = (col) => rows.filter(r => r[col].includes('✅')).length;
-    const hit5strict = (col) => rows.filter(r => r[col].startsWith('★')).length;
+    // Суммарные метрики: сумма найденных rel и must по всем темам
+    const totalRel  = TOPICS.reduce((s, t) => s + t.relevant.length, 0);
+    const totalMust = TOPICS.reduce((s, t) => s + t.mustFind.length, 0);
     const meanRR = (col) => (mrrs.reduce((s, r) => s + r[col], 0) / mrrs.length).toFixed(2);
 
-    const N = TOPICS.length;
-    console.log(`\n${'Метод'.padEnd(10)} Hit@5(any)  Hit@5(must)  MRR`);
-    console.log('─'.repeat(42));
+    const sumHits = (col, list) => {
+      let sum = 0;
+      let i = 0;
+      for (const { relevant, mustFind } of TOPICS) {
+        const cell = rows[i][col];
+        const m = cell.match(list === 'rel' ? /rel:(\d+)/ : /must:(\d+)/);
+        sum += m ? parseInt(m[1]) : 0;
+        i++;
+      }
+      return sum;
+    };
+
+    console.log(`\n${'Метод'.padEnd(10)} rel@${TOP_K}           must@${TOP_K}          MRR`);
+    console.log('─'.repeat(56));
     for (const col of ['bm25', 'vec', 'hybrid', 'hyde', 'rrf']) {
-      console.log(`${col.padEnd(10)} ${String(hit5(col)+'/'+N).padEnd(12)} ${String(hit5strict(col)+'/'+N).padEnd(13)} ${meanRR(col)}`);
+      const relSum  = sumHits(col, 'rel');
+      const mustSum = sumHits(col, 'must');
+      console.log(`${col.padEnd(10)} ${String(relSum+'/'+totalRel).padEnd(16)} ${String(mustSum+'/'+totalMust).padEnd(16)} ${meanRR(col)}`);
     }
   }, 180_000);
 });
