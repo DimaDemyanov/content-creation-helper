@@ -38,7 +38,7 @@ const TOPICS = [
     relevant: [
       'ig_anton_timk_DGibmz6v026', 'ig_anton_timk_DTNpIZXiCbG', 'ig_anton_timk_C8cKk1bC2to',
       'ig_anton_timk_DSK3_lRCGYv', 'ig_anton_timk_DWY0COXF93M',
-      'ig_anton_timk_DUz0RkgDy6J', 'ig_anton_timk_DVG05cvgnZx',
+      'ig_anton_timk_DUz0RkgDy6J',
       'ig_clevel.yacht_DVwJ3JUj9qo', 'ig_clevel.yacht_DUivkh2iqD3', 'ig_clevel.yacht_DOlH6fwijjn',
       'ig_clevel.yacht_DOvz8Xfiszo', 'ig_clevel.yacht_DRRtuieCl4k', 'ig_clevel.yacht_DFNka1_qMFk',
       'ig_clevel.yacht_DPMO2zACrOr', 'ig_clevel.yacht_DOOqCSuirFF', 'ig_clevel.yacht_DT_DbpTCgGm',
@@ -52,20 +52,6 @@ const TOPICS = [
     ],
   },
   {
-    query: 'До конца предпродажи осталось 6 дней',
-    mustFind: ['regataveka_35', 'silavetrasila_8156', 'silavetrasila_8184'],
-    relevant: [
-      'regataveka_35', 'regataveka_180',
-      'ig_clevel.yacht_DOlH6fwijjn', 'ig_clevel.yacht_DIbHiPlK7al', 'ig_clevel.yacht_DNdN49UKGXn',
-      'ig_clevel.yacht_DOvz8Xfiszo', 'ig_clevel.yacht_DU0tWdgio0F', 'ig_clevel.yacht_DPgk_DUDT8C',
-      'ig_clevel.yacht_DVL1SPljfIH', 'ig_clevel.yacht_DRe1kpyCjbD', 'ig_clevel.yacht_DTxfTDojTmI',
-      'ig_clevel.yacht_DSnQ7bxCjaQ',
-      'ig_anton_timk_C1g6wmvrbte', 'ig_anton_timk_C1ttKHliZQJ',
-      'silavetrasila_8156', 'silavetrasila_8184', 'silavetrasila_6542', 'silavetrasila_6596',
-      'meetingplace_news_344',
-    ],
-  },
-  {
     query: 'Как проходит один день на яхте',
     mustFind: ['meetingplace_news_367', 'meetingplace_news_32', 'regataveka_64'],
     relevant: [
@@ -73,7 +59,6 @@ const TOPICS = [
       'regataveka_64', 'regataveka_83', 'regataveka_88', 'regataveka_95', 'regataveka_112', 'regataveka_120',
       'ig_clevel.yacht_DOG2eZLilZp', 'ig_clevel.yacht_DFNka1_qMFk', 'ig_clevel.yacht_DGgRXqaqMSO',
       'silavetrasila_6286', 'silavetrasila_6905',
-      'LyubimovaEvgeniya_1656',
     ],
   },
   {
@@ -85,10 +70,10 @@ const TOPICS = [
     query: 'Как люди обычно попадают на свою первую яхту',
     mustFind: ['silavetrasila_6630', 'silavetrasila_5251', 'ig_clevel.yacht_DHdhW5DKmOZ'],
     relevant: [
-      'silavetrasila_7420', 'silavetrasila_6905', 'silavetrasila_6630', 'silavetrasila_5251', 'silavetrasila_4552',
+      'silavetrasila_7420', 'silavetrasila_6905', 'silavetrasila_6630', 'silavetrasila_5251',
       'ig_clevel.yacht_DRRtuieCl4k', 'ig_clevel.yacht_DOOqCSuirFF', 'ig_clevel.yacht_DHdhW5DKmOZ',
       'ig_clevel.yacht_DR7XTb8CqdW', 'ig_clevel.yacht_DGgRXqaqMSO', 'ig_clevel.yacht_DVBaeYfjcex',
-      'ig_anton_timk_DUz0RkgDy6J', 'ig_anton_timk_DDkBJJzP0na',
+      'ig_anton_timk_DUz0RkgDy6J',
       'meetingplace_news_148',
     ],
   },
@@ -99,8 +84,7 @@ const TOPICS = [
       'LyubimovaEvgeniya_1510', 'LyubimovaEvgeniya_2122', 'LyubimovaEvgeniya_1656', 'LyubimovaEvgeniya_1811',
       'ig_clevel.yacht_DR7XTb8CqdW', 'ig_clevel.yacht_DUivkh2iqD3',
       'ig_clevel.yacht_DLz0Du5KCZv', 'ig_clevel.yacht_DPMO2zACrOr',
-      'ig_clevel.yacht_DS7kZv4jeeO', 'ig_clevel.yacht_DTxfTDojTmI', 'ig_clevel.yacht_DWRnwajj9y7',
-      'ig_anton_timk_DDkBJJzP0na', 'ig_anton_timk_DV8sI8Bj8N1',
+      'ig_clevel.yacht_DWRnwajj9y7',
       'meetingplace_news_96',
     ],
   },
@@ -114,7 +98,7 @@ const TOPICS = [
       'ig_clevel.yacht_DGgRXqaqMSO', 'ig_clevel.yacht_DSzdcLSDiVi', 'ig_clevel.yacht_DRe1kpyCjbD',
       'ig_clevel.yacht_DLC3sJcqR7s', 'ig_clevel.yacht_DEXaJnGKeQv', 'ig_clevel.yacht_DSc5KoijmDw',
       'ig_clevel.yacht_DVRPXpmiiZS', 'ig_clevel.yacht_DIWNtd3KIDo',
-      'ig_clevel.yacht_DVBaeYfjcex', 'ig_clevel.yacht_DT_DbpTCgGm', 'ig_clevel.yacht_DUTaVm7D4kR',
+      'ig_clevel.yacht_DVBaeYfjcex', 'ig_clevel.yacht_DT_DbpTCgGm',
       'ig_clevel.yacht_DUd1HgGimL6', 'ig_clevel.yacht_DVL1SPljfIH',
       'silavetrasila_7742',
     ],
@@ -125,18 +109,17 @@ const TOPICS = [
     relevant: [
       'meetingplace_news_137',
       'ig_anton_timk_DQzdFtlExmi', 'ig_anton_timk_DUVqzSZD87t', 'ig_anton_timk_C2cpF7kNFtM',
-      'ig_anton_timk_DV3RPRAD3hu', 'ig_anton_timk_DVYwbTJD_tN',
       'seapinta_920',
     ],
   },
   {
     query: 'Самые красивые бухты Турции',
-    mustFind: ['silavetrasila_558', 'silavetrasila_1078', 'ig_anton_timk_DGibmz6v026', 'seapinta_944'],
+    mustFind: ['silavetrasila_558', 'silavetrasila_1078', 'ig_anton_timk_DGibmz6v026'],
     relevant: [
       'silavetrasila_558', 'silavetrasila_1078', 'silavetrasila_7742',
-      'ig_anton_timk_DGibmz6v026', 'ig_anton_timk_C7M3ZthieRA',
-      'LyubimovaEvgeniya_732', 'LyubimovaEvgeniya_386', 'LyubimovaEvgeniya_500',
-      'seapinta_944', 'seapinta_918', 'seapinta_959',
+      'ig_anton_timk_DGibmz6v026',
+      'LyubimovaEvgeniya_732', 'LyubimovaEvgeniya_386',
+      'seapinta_944', 'seapinta_959',
       'meetingplace_news_40', 'meetingplace_news_28',
       'ig_clevel.yacht_DSzdcLSDiVi', 'ig_clevel.yacht_DT_DbpTCgGm',
       'regataveka_120',
@@ -144,12 +127,10 @@ const TOPICS = [
   },
   {
     query: 'История: как мы сели на мель',
-    mustFind: ['LyubimovaEvgeniya_2118'],
+    mustFind: ['LyubimovaEvgeniya_2118', 'LyubimovaEvgeniya_2021'],
     relevant: [
-      'LyubimovaEvgeniya_2118', 'LyubimovaEvgeniya_381',
-      'LyubimovaEvgeniya_1865', 'LyubimovaEvgeniya_479', 'LyubimovaEvgeniya_2125',
-      'seapinta_882', 'ig_anton_timk_DV3RPRAD3hu',
-      'ig_clevel.yacht_DOOqCSuirFF', 'ig_clevel.yacht_DU8whcGDRTc',
+      'LyubimovaEvgeniya_2118', 'LyubimovaEvgeniya_2021',
+      'LyubimovaEvgeniya_1865',
     ],
   },
 ];
@@ -348,10 +329,11 @@ describe('Сводный отчёт Hit@5', () => {
     const hit5strict = (col) => rows.filter(r => r[col].startsWith('★')).length;
     const meanRR = (col) => (mrrs.reduce((s, r) => s + r[col], 0) / mrrs.length).toFixed(2);
 
+    const N = TOPICS.length;
     console.log(`\n${'Метод'.padEnd(10)} Hit@5(any)  Hit@5(must)  MRR`);
     console.log('─'.repeat(42));
     for (const col of ['bm25', 'vec', 'hybrid', 'hyde', 'rrf']) {
-      console.log(`${col.padEnd(10)} ${String(hit5(col)+'/10').padEnd(12)} ${String(hit5strict(col)+'/10').padEnd(13)} ${meanRR(col)}`);
+      console.log(`${col.padEnd(10)} ${String(hit5(col)+'/'+N).padEnd(12)} ${String(hit5strict(col)+'/'+N).padEnd(13)} ${meanRR(col)}`);
     }
   }, 180_000);
 });
