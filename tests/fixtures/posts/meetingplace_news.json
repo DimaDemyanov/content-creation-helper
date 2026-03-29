@@ -97,11 +97,11 @@
     "collectedAt": "2026-03-28T10:16:31.954Z"
   },
   {
-    "id": "meetingplace_news_340",
+    "id": "meetingplace_news_289",
     "source": "telegram",
     "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/340",
-    "date": "2025-12-23T19:15:01.000Z",
+    "url": "https://t.me/meetingplace_news/289",
+    "date": "2025-11-19T14:53:50.000Z",
     "text": "",
     "textClean": "",
     "ocrText": null,
@@ -111,171 +111,11 @@
       }
     ],
     "stats": {
-      "views": 153,
+      "views": 122,
       "likes": 0,
       "comments": 0
     },
-    "collectedAt": "2026-03-28T10:09:35.741Z"
-  },
-  {
-    "id": "meetingplace_news_353",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/353",
-    "date": "2026-01-20T15:56:27.000Z",
-    "text": "",
-    "textClean": "",
-    "ocrText": null,
-    "media": [
-      {
-        "type": "photo"
-      }
-    ],
-    "stats": {
-      "views": 154,
-      "likes": 0,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:09:11.661Z"
-  },
-  {
-    "id": "meetingplace_news_319",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/319",
-    "date": "2025-12-10T09:25:01.000Z",
-    "text": "",
-    "textClean": "",
-    "ocrText": null,
-    "media": null,
-    "stats": {
-      "views": 156,
-      "likes": 0,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:10:08.217Z"
-  },
-  {
-    "id": "meetingplace_news_359",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/359",
-    "date": "2026-02-14T21:16:24.000Z",
-    "text": "",
-    "textClean": "",
-    "ocrText": null,
-    "media": [
-      {
-        "type": "photo"
-      }
-    ],
-    "stats": {
-      "views": 94,
-      "likes": 0,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:09:02.512Z"
-  },
-  {
-    "id": "meetingplace_news_354",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/354",
-    "date": "2026-01-20T15:56:27.000Z",
-    "text": "",
-    "textClean": "",
-    "ocrText": null,
-    "media": [
-      {
-        "type": "photo"
-      }
-    ],
-    "stats": {
-      "views": 155,
-      "likes": 0,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:09:08.000Z"
-  },
-  {
-    "id": "meetingplace_news_358",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/358",
-    "date": "2026-02-14T21:16:24.000Z",
-    "text": "",
-    "textClean": "",
-    "ocrText": null,
-    "media": [
-      {
-        "type": "photo"
-      }
-    ],
-    "stats": {
-      "views": 94,
-      "likes": 0,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:09:04.317Z"
-  },
-  {
-    "id": "meetingplace_news_370",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/370",
-    "date": "2026-02-17T18:16:26.000Z",
-    "text": "",
-    "textClean": "",
-    "ocrText": null,
-    "media": [
-      {
-        "type": "photo"
-      }
-    ],
-    "stats": {
-      "views": 97,
-      "likes": 0,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:08:43.829Z"
-  },
-  {
-    "id": "meetingplace_news_161",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/161",
-    "date": "2025-08-07T17:04:15.000Z",
-    "text": "",
-    "textClean": "",
-    "ocrText": null,
-    "media": [
-      {
-        "type": "photo"
-      }
-    ],
-    "stats": {
-      "views": 147,
-      "likes": 0,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:14:41.678Z"
-  },
-  {
-    "id": "meetingplace_news_154",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/154",
-    "date": "2025-08-01T15:04:06.000Z",
-    "text": "🛵🛵",
-    "textClean": "",
-    "ocrText": null,
-    "media": null,
-    "stats": {
-      "views": 123,
-      "likes": 7,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:14:48.249Z"
+    "collectedAt": "2026-03-28T10:11:04.346Z"
   },
   {
     "id": "meetingplace_news_342",
@@ -299,28 +139,53 @@
     "collectedAt": "2026-03-28T10:09:30.846Z"
   },
   {
-    "id": "meetingplace_news_19",
+    "id": "meetingplace_news_156",
     "source": "telegram",
     "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/19",
-    "date": "2024-08-14T08:23:54.000Z",
+    "url": "https://t.me/meetingplace_news/156",
+    "date": "2025-08-04T17:50:06.000Z",
+    "text": "А МОЖЕТ Я ХОЧУ СВОЁ?!\nПутешествие, например 🧳\n\nХочу сам придумать куда я пойду, в какой компании, какую лодку буду брать и какую одежду класть в чемодан))\n\nВсе это - реально!\nПотому что у нас есть опция «свое путешествие», где ты сам творец своего тура, а мы поможем с технической частью😎\n\nНу, а если ты все же не нашел, что надеть на яхту - у нас есть друзья-товарищи 1853, у которых есть абсолютно все, чтобы чувствовать себя настоящим яхтсменом ⚓️\n\nP.S. мужчины на фото в тех самых флисках 😏",
+    "textClean": "А МОЖЕТ Я ХОЧУ СВОЁ Путешествие например Хочу сам придумать куда я пойду в какой компании какую лодку буду брать и какую одежду класть в чемодан Все это реально Потому что у нас есть опция свое путешествие где ты сам творец своего тура а мы поможем с технической частью Ну а если ты все же не нашел что надеть на яхту у нас есть друзья товарищи 1853 у которых есть абсолютно все чтобы чувствовать себя настоящим яхтсменом P S мужчины на фото в тех самых флисках",
+    "ocrText": null,
+    "media": [
+      {
+        "type": "photo"
+      }
+    ],
+    "stats": {
+      "views": 156,
+      "likes": 4,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:14:48.248Z"
+  },
+  {
+    "id": "meetingplace_news_403",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/403",
+    "date": "2026-03-12T15:51:38.000Z",
     "text": "",
     "textClean": "",
-    "ocrText": null,
-    "media": null,
+    "ocrText": "BITÁCORA",
+    "media": [
+      {
+        "type": "photo"
+      }
+    ],
     "stats": {
-      "views": 287,
+      "views": 79,
       "likes": 0,
       "comments": 0
     },
-    "collectedAt": "2026-03-28T10:16:18.847Z"
+    "collectedAt": "2026-03-28T10:07:34.815Z"
   },
   {
-    "id": "meetingplace_news_335",
+    "id": "meetingplace_news_411",
     "source": "telegram",
     "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/335",
-    "date": "2025-12-23T19:15:01.000Z",
+    "url": "https://t.me/meetingplace_news/411",
+    "date": "2026-03-14T20:07:50.000Z",
     "text": "",
     "textClean": "",
     "ocrText": null,
@@ -330,178 +195,18 @@
       }
     ],
     "stats": {
-      "views": 151,
+      "views": 92,
       "likes": 0,
       "comments": 0
     },
-    "collectedAt": "2026-03-28T10:09:47.095Z"
+    "collectedAt": "2026-03-28T10:07:13.511Z"
   },
   {
-    "id": "meetingplace_news_362",
+    "id": "meetingplace_news_215",
     "source": "telegram",
     "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/362",
-    "date": "2026-02-14T21:16:24.000Z",
-    "text": "",
-    "textClean": "",
-    "ocrText": null,
-    "media": [
-      {
-        "type": "photo"
-      }
-    ],
-    "stats": {
-      "views": 96,
-      "likes": 0,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:08:55.221Z"
-  },
-  {
-    "id": "meetingplace_news_242",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/242",
-    "date": "2025-11-01T08:45:51.000Z",
-    "text": "**3 новых слова в вашем яхтсменском вокубуляре** будут присутствовать, после прочтения этого поста 🗯️\n\n- aft = бакштаг \n- tacking = оверштаг\n- jibing = фордевинд\n\nВсе эти слова относятся к направлениям ветра, кроме одного\nПоставь «❤️», если знаешь, какое слово лишнее (или не лишнее)😏\n\n**Соберем 10 реакций и в следующем посте мы расскажем развернутое значение этих терминов🔥**",
-    "textClean": "3 новых слова в вашем яхтсменском вокубуляре будут присутствовать после прочтения этого поста aft бакштаг tacking оверштаг jibing фордевинд Все эти слова относятся к направлениям ветра кроме одного Поставь если знаешь какое слово лишнее или не лишнее Соберем 10 реакций и в следующем посте мы расскажем развернутое значение этих терминов",
-    "ocrText": null,
-    "media": null,
-    "stats": {
-      "views": 98,
-      "likes": 13,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:12:32.926Z"
-  },
-  {
-    "id": "meetingplace_news_112",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/112",
-    "date": "2025-06-07T20:48:21.000Z",
-    "text": "Еще немного контента из Палермо🥹",
-    "textClean": "Еще немного контента из Палермо",
-    "ocrText": "Sutera  Restauranti",
-    "media": [
-      {
-        "type": "photo"
-      }
-    ],
-    "stats": {
-      "views": 140,
-      "likes": 11,
-      "comments": 3
-    },
-    "collectedAt": "2026-03-28T10:15:26.466Z"
-  },
-  {
-    "id": "meetingplace_news_369",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/369",
-    "date": "2026-02-17T18:16:26.000Z",
-    "text": "",
-    "textClean": "",
-    "ocrText": null,
-    "media": [
-      {
-        "type": "photo"
-      }
-    ],
-    "stats": {
-      "views": 96,
-      "likes": 0,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:08:47.053Z"
-  },
-  {
-    "id": "meetingplace_news_312",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/312",
-    "date": "2025-12-03T14:00:01.000Z",
-    "text": "",
-    "textClean": "",
-    "ocrText": null,
-    "media": [
-      {
-        "type": "photo"
-      }
-    ],
-    "stats": {
-      "views": 168,
-      "likes": 0,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:10:15.108Z"
-  },
-  {
-    "id": "meetingplace_news_119",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/119",
-    "date": "2025-06-07T20:48:21.000Z",
-    "text": "",
-    "textClean": "",
-    "ocrText": null,
-    "media": [
-      {
-        "type": "photo"
-      }
-    ],
-    "stats": {
-      "views": 149,
-      "likes": 0,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:15:15.517Z"
-  },
-  {
-    "id": "meetingplace_news_148",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/148",
-    "date": "2025-07-29T11:01:59.000Z",
-    "text": "Обучение яхтингу - это один из любимых элементов активностей у наших путешественников и мы их прекрасно понимаем))\n\nТы когда-нибудь мог представить себя капитаном яхты?\nЕсли нет, то с нами это проще, чем ты думаешь 😉\n\nНаш великолепный шкипер, Олег Александрович, всегда поможет, научит и расскажет все свои увлекательные морские истории😎\n\nНу, а чтобы тебе было удобно бегать по яхте и выполнять указания шкипера - надевай лайкру от 1853 и будет тебе счастье;)",
-    "textClean": "Обучение яхтингу это один из любимых элементов активностей у наших путешественников и мы их прекрасно понимаем Ты когда нибудь мог представить себя капитаном яхты Если нет то с нами это проще чем ты думаешь Наш великолепный шкипер Олег Александрович всегда поможет научит и расскажет все свои увлекательные морские истории Ну а чтобы тебе было удобно бегать по яхте и выполнять указания шкипера надевай лайкру от 1853 и будет тебе счастье",
-    "ocrText": null,
-    "media": [
-      {
-        "type": "photo"
-      }
-    ],
-    "stats": {
-      "views": 132,
-      "likes": 9,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:14:55.668Z"
-  },
-  {
-    "id": "meetingplace_news_88",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/88",
-    "date": "2025-02-27T11:53:41.000Z",
-    "text": "",
-    "textClean": "",
-    "ocrText": null,
-    "media": null,
-    "stats": {
-      "views": 229,
-      "likes": 8,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:15:34.483Z"
-  },
-  {
-    "id": "meetingplace_news_219",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/219",
-    "date": "2025-10-15T10:15:29.000Z",
+    "url": "https://t.me/meetingplace_news/215",
+    "date": "2025-10-15T10:15:28.000Z",
     "text": "",
     "textClean": "",
     "ocrText": null,
@@ -515,222 +220,7 @@
       "likes": 0,
       "comments": 0
     },
-    "collectedAt": "2026-03-28T10:13:22.575Z"
-  },
-  {
-    "id": "meetingplace_news_282",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/282",
-    "date": "2025-11-17T12:44:05.000Z",
-    "text": "",
-    "textClean": "",
-    "ocrText": null,
-    "media": [
-      {
-        "type": "photo"
-      }
-    ],
-    "stats": {
-      "views": 99,
-      "likes": 0,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:11:14.776Z"
-  },
-  {
-    "id": "meetingplace_news_303",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/303",
-    "date": "2025-11-26T15:30:01.000Z",
-    "text": "",
-    "textClean": "",
-    "ocrText": null,
-    "media": [
-      {
-        "type": "photo"
-      }
-    ],
-    "stats": {
-      "views": 138,
-      "likes": 0,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:10:34.650Z"
-  },
-  {
-    "id": "meetingplace_news_169",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/169",
-    "date": "2025-08-13T09:22:43.000Z",
-    "text": "",
-    "textClean": "",
-    "ocrText": null,
-    "media": null,
-    "stats": {
-      "views": 116,
-      "likes": 0,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:14:33.529Z"
-  },
-  {
-    "id": "meetingplace_news_18",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/18",
-    "date": "2024-08-14T08:23:54.000Z",
-    "text": "Вайб Греции именно такой🩵",
-    "textClean": "Вайб Греции именно такой",
-    "ocrText": null,
-    "media": null,
-    "stats": {
-      "views": 304,
-      "likes": 11,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:16:18.847Z"
-  },
-  {
-    "id": "meetingplace_news_344",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/344",
-    "date": "2026-01-07T14:08:01.000Z",
-    "text": "ВТОРАЯ ЧАСТЬ ❤️‍🔥\n\nРождество, это момент, когда ты начинаешь верить в чудо\nИ оно случилось - 2 часть КАЛЕНДАРЯ ТУРОВ МЕСТО ВСТРЕЧИ НА 2026 год 🔥\n\n**Пиши скорее,**** так как места разбирают, как последний стакан рома на корабле!!**\n\n**ХОРВАТИЯ\n**__Адриатическая симфония яхтенных путешествий\n__\nавгуст 2026 года\n\nДревние крепости и оливковые рощи, снорклинг в приватных заливах с бирюзовой водой, ужин в далматинских тавернах и щенячий восторг от водопада\n\n**ЧЕРНОГОРИЯ\n**__Средиземноморский фьорд с кальмарами на ужин\n\nсентябрь__ 2026 года\n\nЭкстремальный рафтинг по реке, ночные клубы Будвы, дайвинг возле австро-венгерской крепости и пешие прогулки на свежем воздухе\n\n**СЕЙШЕЛЫ\n**__Бросаем якорь в лагунах с черепахами__**\n**\nоктябрь 2026 года\n\nДайвинг и снорклинг с черепахами, китовыми акулами и скатами, рыбалка на тропических рыб, полное разнообразие морепродуктов и потрясающие закаты\n\n**Ставь реакцию на этот пост, ведь ты еще помнишь про** **СЕКРЕТНУЮ ЛОКАЦИЮ**📱",
-    "textClean": "ВТОРАЯ ЧАСТЬ Рождество это момент когда ты начинаешь верить в чудо И оно случилось 2 часть КАЛЕНДАРЯ ТУРОВ МЕСТО ВСТРЕЧИ НА 2026 год Пиши скорее так как места разбирают как последний стакан рома на корабле ХОРВАТИЯ Адриатическая симфония яхтенных путешествий август 2026 года Древние крепости и оливковые рощи снорклинг в приватных заливах с бирюзовой водой ужин в далматинских тавернах и щенячий восторг от водопада ЧЕРНОГОРИЯ Средиземноморский фьорд с кальмарами на ужин сентябрь 2026 года Экстремальный рафтинг по реке ночные клубы Будвы дайвинг возле австро венгерской крепости и пешие прогулки на свежем воздухе СЕЙШЕЛЫ Бросаем якорь в лагунах с черепахами октябрь 2026 года Дайвинг и снорклинг с черепахами китовыми акулами и скатами рыбалка на тропических рыб полное разнообразие морепродуктов и потрясающие закаты Ставь реакцию на этот пост ведь ты еще помнишь про СЕКРЕТНУЮ ЛОКАЦИЮ",
-    "ocrText": null,
-    "media": [
-      {
-        "type": "photo"
-      }
-    ],
-    "stats": {
-      "views": 145,
-      "likes": 8,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:09:28.847Z"
-  },
-  {
-    "id": "meetingplace_news_115",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/115",
-    "date": "2025-06-07T20:48:21.000Z",
-    "text": "",
-    "textClean": "",
-    "ocrText": null,
-    "media": [
-      {
-        "type": "photo"
-      }
-    ],
-    "stats": {
-      "views": 147,
-      "likes": 0,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:15:21.753Z"
-  },
-  {
-    "id": "meetingplace_news_338",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/338",
-    "date": "2025-12-23T19:15:01.000Z",
-    "text": "",
-    "textClean": "",
-    "ocrText": null,
-    "media": [
-      {
-        "type": "photo"
-      }
-    ],
-    "stats": {
-      "views": 163,
-      "likes": 0,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:09:39.842Z"
-  },
-  {
-    "id": "meetingplace_news_415",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/415",
-    "date": "2026-03-24T14:47:01.000Z",
-    "text": "",
-    "textClean": "",
-    "ocrText": null,
-    "media": [
-      {
-        "type": "photo"
-      }
-    ],
-    "stats": {
-      "views": 42,
-      "likes": 0,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:07:00.507Z"
-  },
-  {
-    "id": "meetingplace_news_10",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/10",
-    "date": "2024-08-13T08:12:04.000Z",
-    "text": "**Греция: как это было? **🇬🇷\n\nНа майских праздниках наша команда летала в Грецию. И вот, что нам удалось сделать за 7 дней:\n- научились управлять яхтами\n- устроили дружеское соревнование от о. Порос до г. Эрмиони. Участвовало 3 борта\n- покатались по серпантинам о.Порос и о.Эгина на квадроциклах\n- нырнули с аквалангом около г. Эпидавроса\n- исследовали руины древнего города, который затопило водой \n- рыбачили с яхт** **\n- погуляли по Афинам: город необычный и очень красивый\n- кушали в самых вкусных ресторанах Греции\n- прыгали с яхтенной тарзанки\n- пели песни под гитару на дикой стоянке возле о. Порос\n\nИ просто наслаждались каждым моментом🌊\nИ у тебя есть возможность испытать эти ощущения вместе с нами😉",
-    "textClean": "Греция как это было На майских праздниках наша команда летала в Грецию И вот что нам удалось сделать за 7 дней научились управлять яхтами устроили дружеское соревнование от о Порос до г Эрмиони Участвовало 3 борта покатались по серпантинам о Порос и о Эгина на квадроциклах нырнули с аквалангом около г Эпидавроса исследовали руины древнего города который затопило водой рыбачили с яхт погуляли по Афинам город необычный и очень красивый кушали в самых вкусных ресторанах Греции прыгали с яхтенной тарзанки пели песни под гитару на дикой стоянке возле о Порос И просто наслаждались каждым моментом И у тебя есть возможность испытать эти ощущения вместе с нами",
-    "ocrText": "КОНТИН.",
-    "media": [
-      {
-        "type": "photo"
-      }
-    ],
-    "stats": {
-      "views": 319,
-      "likes": 16,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:16:30.880Z"
-  },
-  {
-    "id": "meetingplace_news_189",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/189",
-    "date": "2025-09-12T17:49:04.000Z",
-    "text": "Когда организатор совсем выбился из сил - на помощь приходят лучшие клиенты 😏🔥",
-    "textClean": "Когда организатор совсем выбился из сил на помощь приходят лучшие клиенты",
-    "ocrText": null,
-    "media": null,
-    "stats": {
-      "views": 153,
-      "likes": 4,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:14:08.259Z"
-  },
-  {
-    "id": "meetingplace_news_28",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/28",
-    "date": "2024-08-28T08:05:05.000Z",
-    "text": "Ты привык, что Турция, это типичный отель, с огромным количеством людей, еды и бесполезного времени препровождения?\n\nТеперь, у тебя есть возможность открыть для себя новую сторону турецкого отдыха 🇹🇷\n\nМы ждем тебя💙",
-    "textClean": "Ты привык что Турция это типичный отель с огромным количеством людей еды и бесполезного времени препровождения Теперь у тебя есть возможность открыть для себя новую сторону турецкого отдыха Мы ждем тебя",
-    "ocrText": null,
-    "media": null,
-    "stats": {
-      "views": 280,
-      "likes": 13,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:16:17.733Z"
+    "collectedAt": "2026-03-28T10:13:39.689Z"
   },
   {
     "id": "meetingplace_news_414",
@@ -754,13 +244,13 @@
     "collectedAt": "2026-03-28T10:07:03.068Z"
   },
   {
-    "id": "meetingplace_news_96",
+    "id": "meetingplace_news_193",
     "source": "telegram",
     "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/96",
-    "date": "2025-04-01T09:53:27.000Z",
-    "text": "ПОЧЕМУ НЕ СТОИТ ОТКЛАДЫВАТЬ МЕЧТЫ?💭 \nМы все любим помечтать и придумать в голове идеальную картинку нашей жизни 🖼️\n\nА что если, не просто рисовать это в своих мыслях, а превратить в реальность?\nКогда если не сейчас стоит исполнять свои мечты 🎯 \n\nНеважно сколько тебе лет, где ты живешь или кем работаешь — разреши себе жить так, как хочешь\n\nА мы поможем добавить в твою жизнь морских приключений 😉\n\nЗабронировать последние места в итальянском туре можно по ссылке 🇮🇹",
-    "textClean": "ПОЧЕМУ НЕ СТОИТ ОТКЛАДЫВАТЬ МЕЧТЫ Мы все любим помечтать и придумать в голове идеальную картинку нашей жизни А что если не просто рисовать это в своих мыслях а превратить в реальность Когда если не сейчас стоит исполнять свои мечты Неважно сколько тебе лет где ты живешь или кем работаешь разреши себе жить так как хочешь А мы поможем добавить в твою жизнь морских приключений Забронировать последние места в итальянском туре можно по ссылке",
+    "url": "https://t.me/meetingplace_news/193",
+    "date": "2025-09-18T18:36:58.000Z",
+    "text": "",
+    "textClean": "",
     "ocrText": null,
     "media": [
       {
@@ -768,94 +258,216 @@
       }
     ],
     "stats": {
-      "views": 234,
-      "likes": 5,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:15:33.332Z"
-  },
-  {
-    "id": "meetingplace_news_33",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/33",
-    "date": "2024-09-01T16:34:49.000Z",
-    "text": "",
-    "textClean": "",
-    "ocrText": "Нет.",
-    "media": [
-      {
-        "type": "photo"
-      }
-    ],
-    "stats": {
-      "views": 316,
+      "views": 200,
       "likes": 0,
       "comments": 0
     },
-    "collectedAt": "2026-03-28T10:16:15.957Z"
+    "collectedAt": "2026-03-28T10:14:03.988Z"
   },
   {
-    "id": "meetingplace_news_62",
+    "id": "meetingplace_news_109",
     "source": "telegram",
     "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/62",
-    "date": "2024-12-10T17:18:36.000Z",
+    "url": "https://t.me/meetingplace_news/109",
+    "date": "2025-06-06T22:52:36.000Z",
+    "text": "Только недавно наша группка разбрелась по ночлежкам после экскурсии по Палермо!\n\nЧудесная экскурсовод предложила много вариаций тура, но мы люди непростые – нам нужно все и сразу. Поэтому ей пришлось совместить 3 экскурсии в одной: старый вечерний город, гастрономия и, конечно, сицилийская мафия.",
+    "textClean": "Только недавно наша группка разбрелась по ночлежкам после экскурсии по Палермо Чудесная экскурсовод предложила много вариаций тура но мы люди непростые нам нужно все и сразу Поэтому ей пришлось совместить 3 экскурсии в одной старый вечерний город гастрономия и конечно сицилийская мафия",
+    "ocrText": null,
+    "media": null,
+    "stats": {
+      "views": 129,
+      "likes": 0,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:15:28.309Z"
+  },
+  {
+    "id": "meetingplace_news_128",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/128",
+    "date": "2025-06-11T09:13:47.000Z",
     "text": "",
     "textClean": "",
     "ocrText": null,
     "media": null,
     "stats": {
-      "views": 320,
+      "views": 147,
+      "likes": 2,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:15:13.048Z"
+  },
+  {
+    "id": "meetingplace_news_417",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/417",
+    "date": "2026-03-24T14:47:01.000Z",
+    "text": "",
+    "textClean": "",
+    "ocrText": null,
+    "media": [
+      {
+        "type": "photo"
+      }
+    ],
+    "stats": {
+      "views": 42,
       "likes": 0,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:06:54.655Z"
+  },
+  {
+    "id": "meetingplace_news_405",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/405",
+    "date": "2026-03-14T20:07:50.000Z",
+    "text": "",
+    "textClean": "",
+    "ocrText": null,
+    "media": [
+      {
+        "type": "photo"
+      }
+    ],
+    "stats": {
+      "views": 92,
+      "likes": 0,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:07:29.690Z"
+  },
+  {
+    "id": "meetingplace_news_185",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/185",
+    "date": "2025-09-09T18:27:46.000Z",
+    "text": "⚓️",
+    "textClean": "",
+    "ocrText": null,
+    "media": [
+      {
+        "type": "photo"
+      }
+    ],
+    "stats": {
+      "views": 132,
+      "likes": 0,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:14:12.230Z"
+  },
+  {
+    "id": "meetingplace_news_374",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/374",
+    "date": "2026-02-17T18:16:26.000Z",
+    "text": "",
+    "textClean": "",
+    "ocrText": null,
+    "media": [
+      {
+        "type": "photo"
+      }
+    ],
+    "stats": {
+      "views": 103,
+      "likes": 0,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:08:32.768Z"
+  },
+  {
+    "id": "meetingplace_news_410",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/410",
+    "date": "2026-03-14T20:07:50.000Z",
+    "text": "",
+    "textClean": "",
+    "ocrText": null,
+    "media": [
+      {
+        "type": "photo"
+      }
+    ],
+    "stats": {
+      "views": 92,
+      "likes": 0,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:07:15.971Z"
+  },
+  {
+    "id": "meetingplace_news_152",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/152",
+    "date": "2025-07-31T15:12:30.000Z",
+    "text": "",
+    "textClean": "",
+    "ocrText": null,
+    "media": [
+      {
+        "type": "photo"
+      }
+    ],
+    "stats": {
+      "views": 127,
+      "likes": 0,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:14:49.820Z"
+  },
+  {
+    "id": "meetingplace_news_60",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/60",
+    "date": "2024-12-09T11:02:43.000Z",
+    "text": "Красивые виды, тёплое и солёное море, много зелени и комфортных людей, и конечно бесконечное количество яхт — задумывались ли вы, а может ли это стать моей постоянной реальностью?\nС нами – однозначно, ДА🔥\nДелимся контентом дальше?\nЕсли да, ставим реакцию под постом 🐳",
+    "textClean": "Красивые виды тёплое и солёное море много зелени и комфортных людей и конечно бесконечное количество яхт задумывались ли вы а может ли это стать моей постоянной реальностью С нами однозначно ДА Делимся контентом дальше Если да ставим реакцию под постом",
+    "ocrText": null,
+    "media": null,
+    "stats": {
+      "views": 251,
+      "likes": 8,
       "comments": 0
     },
     "collectedAt": "2026-03-28T10:15:52.296Z"
   },
   {
-    "id": "meetingplace_news_40",
+    "id": "meetingplace_news_371",
     "source": "telegram",
     "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/40",
-    "date": "2024-10-08T15:25:43.000Z",
-    "text": "Мы на месте🇹🇷\n\nПутешествие длится уже 4 дня и нас поглотили эмоции от увиденного, поэтому времени делиться с вами потрясным контентом - не хватает(\n\nНо мы обязательно вернемся, и вы сможете насладиться всеми красотами Турции с яхты при помощи наших фотографий📸\n\n#турция #местовстречи",
-    "textClean": "Мы на месте Путешествие длится уже 4 дня и нас поглотили эмоции от увиденного поэтому времени делиться с вами потрясным контентом не хватает Но мы обязательно вернемся и вы сможете насладиться всеми красотами Турции с яхты при помощи наших фотографий",
-    "ocrText": null,
+    "url": "https://t.me/meetingplace_news/371",
+    "date": "2026-02-17T18:16:26.000Z",
+    "text": "",
+    "textClean": "",
+    "ocrText": "Сан-Жиль (Saint-Gilles)  \nЛа-Рошель",
     "media": [
       {
         "type": "photo"
       }
     ],
     "stats": {
-      "views": 303,
-      "likes": 9,
+      "views": 98,
+      "likes": 0,
       "comments": 0
     },
-    "collectedAt": "2026-03-28T10:16:09.412Z"
+    "collectedAt": "2026-03-28T10:08:41.049Z"
   },
   {
-    "id": "meetingplace_news_314",
+    "id": "meetingplace_news_74",
     "source": "telegram",
     "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/314",
-    "date": "2025-12-05T18:06:12.000Z",
-    "text": "**Что думает Кирилл насчет 1 дня в Тае?**\nВот и я не знаю, давайте смотреть это видео вместе🫂",
-    "textClean": "Что думает Кирилл насчет 1 дня в Тае Вот и я не знаю давайте смотреть это видео вместе",
-    "ocrText": null,
-    "media": null,
-    "stats": {
-      "views": 117,
-      "likes": 9,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:10:08.991Z"
-  },
-  {
-    "id": "meetingplace_news_313",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/313",
-    "date": "2025-12-03T14:00:01.000Z",
+    "url": "https://t.me/meetingplace_news/74",
+    "date": "2025-01-27T14:56:20.000Z",
     "text": "",
     "textClean": "",
     "ocrText": null,
@@ -865,11 +477,251 @@
       }
     ],
     "stats": {
-      "views": 161,
+      "views": 244,
       "likes": 0,
       "comments": 0
     },
-    "collectedAt": "2026-03-28T10:10:12.536Z"
+    "collectedAt": "2026-03-28T10:15:43.049Z"
+  },
+  {
+    "id": "meetingplace_news_163",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/163",
+    "date": "2025-08-11T18:40:18.000Z",
+    "text": "Так звучит наш тур🥹",
+    "textClean": "Так звучит наш тур",
+    "ocrText": null,
+    "media": null,
+    "stats": {
+      "views": 106,
+      "likes": 5,
+      "comments": 2
+    },
+    "collectedAt": "2026-03-28T10:14:39.345Z"
+  },
+  {
+    "id": "meetingplace_news_389",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/389",
+    "date": "2026-03-04T20:50:34.000Z",
+    "text": "",
+    "textClean": "",
+    "ocrText": "lavadoras  \nInstrucciones / Instructions  \n8 kg  \n13 kg  \n0:04  \n5€  \nPara cualquier consulta acerca de estas máquinas, 216% en la Central. Preguntar a los empleados.",
+    "media": [
+      {
+        "type": "photo"
+      }
+    ],
+    "stats": {
+      "views": 121,
+      "likes": 0,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:08:15.299Z"
+  },
+  {
+    "id": "meetingplace_news_94",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/94",
+    "date": "2025-03-21T16:07:02.000Z",
+    "text": "ВПЕЧАТЛЯЮЩИЕ ЗАКАТЫ 🌅 \nИ это лишь малая часть того, что вы увидите в Италии своими глазами 🥹\n\nА пока мы наслаждаемся вайбом приближающегося лета в Москве✨",
+    "textClean": "ВПЕЧАТЛЯЮЩИЕ ЗАКАТЫ И это лишь малая часть того что вы увидите в Италии своими глазами А пока мы наслаждаемся вайбом приближающегося лета в Москве",
+    "ocrText": null,
+    "media": null,
+    "stats": {
+      "views": 244,
+      "likes": 6,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:15:33.332Z"
+  },
+  {
+    "id": "meetingplace_news_87",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/87",
+    "date": "2025-02-22T18:56:27.000Z",
+    "text": "VULCANO PORTO\nОдна из точек нашего маршрута, которая популярна, как вы думаете чем?\nКонечно грязевыми ваннами 🌋 \nОни способствуют сокращению стресса и благотворно влияют на кожу\nА так же вы можете насладиться местным вином «мальвазия», пока наблюдаете за шикарным закатом 🌅 \n\nПоэтому спеши стать одним из нас😎\nТем, кто едет в Италию🇮🇹",
+    "textClean": "VULCANO PORTO Одна из точек нашего маршрута которая популярна как вы думаете чем Конечно грязевыми ваннами Они способствуют сокращению стресса и благотворно влияют на кожу А так же вы можете насладиться местным вином мальвазия пока наблюдаете за шикарным закатом Поэтому спеши стать одним из нас Тем кто едет в Италию",
+    "ocrText": null,
+    "media": [
+      {
+        "type": "photo"
+      }
+    ],
+    "stats": {
+      "views": 280,
+      "likes": 0,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:15:35.532Z"
+  },
+  {
+    "id": "meetingplace_news_373",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/373",
+    "date": "2026-02-17T18:16:26.000Z",
+    "text": "",
+    "textClean": "",
+    "ocrText": null,
+    "media": [
+      {
+        "type": "photo"
+      }
+    ],
+    "stats": {
+      "views": 99,
+      "likes": 0,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:08:35.433Z"
+  },
+  {
+    "id": "meetingplace_news_395",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/395",
+    "date": "2026-03-04T20:50:34.000Z",
+    "text": "",
+    "textClean": "",
+    "ocrText": null,
+    "media": [
+      {
+        "type": "photo"
+      }
+    ],
+    "stats": {
+      "views": 125,
+      "likes": 0,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:07:55.332Z"
+  },
+  {
+    "id": "meetingplace_news_11",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/11",
+    "date": "2024-08-13T08:12:05.000Z",
+    "text": "",
+    "textClean": "",
+    "ocrText": null,
+    "media": [
+      {
+        "type": "photo"
+      }
+    ],
+    "stats": {
+      "views": 320,
+      "likes": 0,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:16:27.450Z"
+  },
+  {
+    "id": "meetingplace_news_376",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/376",
+    "date": "2026-02-20T15:13:56.000Z",
+    "text": "",
+    "textClean": "",
+    "ocrText": null,
+    "media": null,
+    "stats": {
+      "views": 79,
+      "likes": 4,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:08:30.120Z"
+  },
+  {
+    "id": "meetingplace_news_413",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/413",
+    "date": "2026-03-24T14:47:01.000Z",
+    "text": "ГОРОД, НАЗВАННЫЙ В ЧЕСТЬ\n\nКого же?)\nНа этот вопрос мы будем ждать ответ в комментариях (там __на самом деле очень просто__🤓)\n\n**Итак, город Малага - это не только солнечные пляжи и родина Пабло Пикассо**\n\nВот несколько необычных фактов об этом городе:\n\n**1)** в 1964 году легендарный Франк Синатра поспорил здесь во время сьемок с актрисой, потом благополучно нагрубил агентам и забаррикадировался в отеле, за что **отсидел несколько часов в камере**, в здании Дворца таможни\n\n**2)** Испанская Атапуэерка - это лучше всего сохранившийся археологической комплекс **(8-6 век до н.э.) **и на** **сегодняшний день исследовано **только 5%** ‼️ этого памятника\n\n**3) **Здесь есть часы, который **обманывают время** - так называемая британская система, когда минутная стрелка перескакивает каждые 59 секунд (__это наследие старых железнодорожных механизмов__)\n\nА, ну и конечно мы были на самой знаменитой **арене для корриды La Malagueta **__(и там внутри был фантастико музей со всякими приблудами для корриды, но если что мы против насилия над животными‼️)__",
+    "textClean": "ГОРОД НАЗВАННЫЙ В ЧЕСТЬ Кого же На этот вопрос мы будем ждать ответ в комментариях там на самом деле очень просто Итак город Малага это не только солнечные пляжи и родина Пабло Пикассо Вот несколько необычных фактов об этом городе 1 в 1964 году легендарный Франк Синатра поспорил здесь во время сьемок с актрисой потом благополучно нагрубил агентам и забаррикадировался в отеле за что отсидел несколько часов в камере в здании Дворца таможни 2 Испанская Атапуэерка это лучше всего сохранившийся археологической комплекс 8 6 век до н э и на сегодняшний день исследовано только 5 этого памятника 3 Здесь есть часы который обманывают время так называемая британская система когда минутная стрелка перескакивает каждые 59 секунд это наследие старых железнодорожных механизмов А ну и конечно мы были на самой знаменитой арене для корриды La Malagueta и там внутри был фантастико музей со всякими приблудами для корриды но если что мы против насилия над животными",
+    "ocrText": null,
+    "media": [
+      {
+        "type": "photo"
+      }
+    ],
+    "stats": {
+      "views": 42,
+      "likes": 2,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:07:06.548Z"
+  },
+  {
+    "id": "meetingplace_news_388",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/388",
+    "date": "2026-03-04T20:50:34.000Z",
+    "text": "СЛЕДУЮЩАЯ ОСТАНОВКА \n\nГород Виго - крупнейший рыболовный порт во всей Европе 🌊\n\n**3 интересных факта про этот город: **\n- это просто рай для гурманов, здесь есть все от устриц до консервов (__здесь есть даже улица устриц 🦪, если вы поняли о чем мы 😏__)\n\n- здешняя бухта хранит на своем дне сокровища, которые кладоискатели пытаются найти до сих пор (__англо-голландский флот атаковал испанские галеоны, груженные серебром и золотом из Америки, значительная масса которых затонула вместе с кораблями__)\n\n- здесь есть мост с абсолютно потрясающим видом на весь город Виго, называется Ponte de Rande (__он__ __находится как раз над тем местом, где происходили сражения за испанское золото__🥇)\n\n**Вопрос на внимательность и интеллект - в каком году было сражение за золото и какой длины этот вантовый мост?\n\n**Первые 3 счастливчика, кто угадает - получат ~~ебейшую~~ невероятную скидку на наше грядущее греческое** **путешествие 😏",
+    "textClean": "СЛЕДУЮЩАЯ ОСТАНОВКА Город Виго крупнейший рыболовный порт во всей Европе 3 интересных факта про этот город это просто рай для гурманов здесь есть все от устриц до консервов здесь есть даже улица устриц если вы поняли о чем мы здешняя бухта хранит на своем дне сокровища которые кладоискатели пытаются найти до сих пор англо голландский флот атаковал испанские галеоны груженные серебром и золотом из Америки значительная масса которых затонула вместе с кораблями здесь есть мост с абсолютно потрясающим видом на весь город Виго называется Ponte de Rande он находится как раз над тем местом где происходили сражения за испанское золото Вопрос на внимательность и интеллект в каком году было сражение за золото и какой длины этот вантовый мост Первые 3 счастливчика кто угадает получат ебейшую невероятную скидку на наше грядущее греческое путешествие",
+    "ocrText": null,
+    "media": [
+      {
+        "type": "photo"
+      }
+    ],
+    "stats": {
+      "views": 123,
+      "likes": 14,
+      "comments": 5
+    },
+    "collectedAt": "2026-03-28T10:08:17.718Z"
+  },
+  {
+    "id": "meetingplace_news_415",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/415",
+    "date": "2026-03-24T14:47:01.000Z",
+    "text": "",
+    "textClean": "",
+    "ocrText": null,
+    "media": [
+      {
+        "type": "photo"
+      }
+    ],
+    "stats": {
+      "views": 42,
+      "likes": 0,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:07:00.507Z"
+  },
+  {
+    "id": "meetingplace_news_142",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/142",
+    "date": "2025-07-03T13:31:16.000Z",
+    "text": "",
+    "textClean": "",
+    "ocrText": null,
+    "media": [
+      {
+        "type": "photo"
+      }
+    ],
+    "stats": {
+      "views": 194,
+      "likes": 0,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:15:02.673Z"
   },
   {
     "id": "meetingplace_news_134",
@@ -889,28 +741,11 @@
     "collectedAt": "2026-03-28T10:15:11.926Z"
   },
   {
-    "id": "meetingplace_news_130",
+    "id": "meetingplace_news_45",
     "source": "telegram",
     "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/130",
-    "date": "2025-06-11T18:51:09.000Z",
-    "text": "",
-    "textClean": "",
-    "ocrText": null,
-    "media": null,
-    "stats": {
-      "views": 144,
-      "likes": 3,
-      "comments": 0
-    },
-    "collectedAt": "2026-03-28T10:15:13.048Z"
-  },
-  {
-    "id": "meetingplace_news_288",
-    "source": "telegram",
-    "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/288",
-    "date": "2025-11-19T14:53:50.000Z",
+    "url": "https://t.me/meetingplace_news/45",
+    "date": "2024-10-08T15:25:44.000Z",
     "text": "",
     "textClean": "",
     "ocrText": null,
@@ -920,35 +755,35 @@
       }
     ],
     "stats": {
-      "views": 120,
+      "views": 324,
       "likes": 0,
       "comments": 0
     },
-    "collectedAt": "2026-03-28T10:11:07.446Z"
+    "collectedAt": "2026-03-28T10:16:02.098Z"
   },
   {
-    "id": "meetingplace_news_99",
+    "id": "meetingplace_news_37",
     "source": "telegram",
     "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/99",
-    "date": "2025-04-22T18:30:12.000Z",
-    "text": "ТУСОВКИ 🪩\nИ это не единственное, что сближает нас во время путешествия 🧳 \n\nМы целую неделю находимся в одном маленьком пространстве, постоянно взаимодействуем, начиная от приготовления завтрака и заканчивая ловлей купальника, который кто-то оставил на леере (железные тросы вдоль борта)😂\n\nИ конечно, непосредственно гонки, которые мы проводим каждую поездку, где мы все - это единый механизм, благодаря слаженной работе которого яхта нас слушается 🛥️ \n\nНе бойтесь ехать в наше путешествие в одиночку, ведь яхтинг - сближает😉",
-    "textClean": "ТУСОВКИ И это не единственное что сближает нас во время путешествия Мы целую неделю находимся в одном маленьком пространстве постоянно взаимодействуем начиная от приготовления завтрака и заканчивая ловлей купальника который кто то оставил на леере железные тросы вдоль борта И конечно непосредственно гонки которые мы проводим каждую поездку где мы все это единый механизм благодаря слаженной работе которого яхта нас слушается Не бойтесь ехать в наше путешествие в одиночку ведь яхтинг сближает",
+    "url": "https://t.me/meetingplace_news/37",
+    "date": "2024-09-13T09:00:37.000Z",
+    "text": "**Обучение яхтингу💡\n\n**Многие думают, что это безумно** **сложно, много терминов, веревок и правил, которые нужно знать…\nНо не у нас😎\nС нашей командой, вы быстро научитесь «добирать грот», «травить стаксель» и управлять штурвалом;\nС нами вы быстро почувствуете себя настоящими шкиперами и матросами🩵",
+    "textClean": "Обучение яхтингу Многие думают что это безумно сложно много терминов веревок и правил которые нужно знать Но не у нас С нашей командой вы быстро научитесь добирать грот травить стаксель и управлять штурвалом С нами вы быстро почувствуете себя настоящими шкиперами и матросами",
     "ocrText": null,
     "media": null,
     "stats": {
-      "views": 231,
-      "likes": 2,
+      "views": 312,
+      "likes": 11,
       "comments": 0
     },
-    "collectedAt": "2026-03-28T10:15:30.975Z"
+    "collectedAt": "2026-03-28T10:16:11.599Z"
   },
   {
-    "id": "meetingplace_news_188",
+    "id": "meetingplace_news_399",
     "source": "telegram",
     "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/188",
-    "date": "2025-09-10T19:42:07.000Z",
+    "url": "https://t.me/meetingplace_news/399",
+    "date": "2026-03-12T15:51:38.000Z",
     "text": "",
     "textClean": "",
     "ocrText": null,
@@ -958,27 +793,208 @@
       }
     ],
     "stats": {
-      "views": 144,
+      "views": 78,
       "likes": 0,
       "comments": 0
     },
-    "collectedAt": "2026-03-28T10:14:09.259Z"
+    "collectedAt": "2026-03-28T10:07:44.954Z"
   },
   {
-    "id": "meetingplace_news_120",
+    "id": "meetingplace_news_370",
     "source": "telegram",
     "channel": "meetingplace_news",
-    "url": "https://t.me/meetingplace_news/120",
-    "date": "2025-06-08T07:25:04.000Z",
+    "url": "https://t.me/meetingplace_news/370",
+    "date": "2026-02-17T18:16:26.000Z",
+    "text": "",
+    "textClean": "",
+    "ocrText": null,
+    "media": [
+      {
+        "type": "photo"
+      }
+    ],
+    "stats": {
+      "views": 97,
+      "likes": 0,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:08:43.829Z"
+  },
+  {
+    "id": "meetingplace_news_66",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/66",
+    "date": "2024-12-15T11:12:01.000Z",
     "text": "",
     "textClean": "",
     "ocrText": null,
     "media": null,
     "stats": {
-      "views": 148,
-      "likes": 1,
+      "views": 378,
+      "likes": 4,
       "comments": 0
     },
-    "collectedAt": "2026-03-28T10:15:13.048Z"
+    "collectedAt": "2026-03-28T10:15:52.295Z"
+  },
+  {
+    "id": "meetingplace_news_41",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/41",
+    "date": "2024-10-08T15:25:44.000Z",
+    "text": "",
+    "textClean": "",
+    "ocrText": null,
+    "media": [
+      {
+        "type": "photo"
+      }
+    ],
+    "stats": {
+      "views": 310,
+      "likes": 0,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:16:08.315Z"
+  },
+  {
+    "id": "meetingplace_news_408",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/408",
+    "date": "2026-03-14T20:07:50.000Z",
+    "text": "",
+    "textClean": "",
+    "ocrText": null,
+    "media": [
+      {
+        "type": "photo"
+      }
+    ],
+    "stats": {
+      "views": 92,
+      "likes": 0,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:07:20.687Z"
+  },
+  {
+    "id": "meetingplace_news_331",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/331",
+    "date": "2025-12-22T14:32:07.000Z",
+    "text": "❤️❤️❤️",
+    "textClean": "",
+    "ocrText": null,
+    "media": null,
+    "stats": {
+      "views": 114,
+      "likes": 0,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:09:50.850Z"
+  },
+  {
+    "id": "meetingplace_news_335",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/335",
+    "date": "2025-12-23T19:15:01.000Z",
+    "text": "",
+    "textClean": "",
+    "ocrText": null,
+    "media": [
+      {
+        "type": "photo"
+      }
+    ],
+    "stats": {
+      "views": 151,
+      "likes": 0,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:09:47.095Z"
+  },
+  {
+    "id": "meetingplace_news_28",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/28",
+    "date": "2024-08-28T08:05:05.000Z",
+    "text": "Ты привык, что Турция, это типичный отель, с огромным количеством людей, еды и бесполезного времени препровождения?\n\nТеперь, у тебя есть возможность открыть для себя новую сторону турецкого отдыха 🇹🇷\n\nМы ждем тебя💙",
+    "textClean": "Ты привык что Турция это типичный отель с огромным количеством людей еды и бесполезного времени препровождения Теперь у тебя есть возможность открыть для себя новую сторону турецкого отдыха Мы ждем тебя",
+    "ocrText": null,
+    "media": null,
+    "stats": {
+      "views": 280,
+      "likes": 13,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:16:17.733Z"
+  },
+  {
+    "id": "meetingplace_news_141",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/141",
+    "date": "2025-07-03T13:31:16.000Z",
+    "text": "",
+    "textClean": "",
+    "ocrText": null,
+    "media": [
+      {
+        "type": "photo"
+      }
+    ],
+    "stats": {
+      "views": 202,
+      "likes": 0,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:15:03.756Z"
+  },
+  {
+    "id": "meetingplace_news_177",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/177",
+    "date": "2025-08-28T18:19:19.000Z",
+    "text": "ОПЯТЬ ФАКАП?!!?\nДа, мы тоже люди, и у нас бывают неожиданные случаи 😅\n\nЗаканчивается вода в баке? - Не беда! Мы помоем посуду в море\n\nСлышно, как мы поем под гитару на соседних лодках? - Приходите петь вместе с нами😏\n\nНет мест в порту? - Дикая стоянка наш краш 🌴\n\nСамые лучшие истории начинаются именно с этого: «А помнишь, как мы..» 😂\n\nЖми огонь, если любишь навалить кринжа с друзьями👻",
+    "textClean": "ОПЯТЬ ФАКАП Да мы тоже люди и у нас бывают неожиданные случаи Заканчивается вода в баке Не беда Мы помоем посуду в море Слышно как мы поем под гитару на соседних лодках Приходите петь вместе с нами Нет мест в порту Дикая стоянка наш краш Самые лучшие истории начинаются именно с этого А помнишь как мы Жми огонь если любишь навалить кринжа с друзьями",
+    "ocrText": null,
+    "media": [
+      {
+        "type": "photo"
+      }
+    ],
+    "stats": {
+      "views": 127,
+      "likes": 8,
+      "comments": 1
+    },
+    "collectedAt": "2026-03-28T10:14:25.847Z"
+  },
+  {
+    "id": "meetingplace_news_75",
+    "source": "telegram",
+    "channel": "meetingplace_news",
+    "url": "https://t.me/meetingplace_news/75",
+    "date": "2025-01-27T14:56:20.000Z",
+    "text": "",
+    "textClean": "",
+    "ocrText": null,
+    "media": [
+      {
+        "type": "photo"
+      }
+    ],
+    "stats": {
+      "views": 242,
+      "likes": 0,
+      "comments": 0
+    },
+    "collectedAt": "2026-03-28T10:15:41.961Z"
   }
 ]

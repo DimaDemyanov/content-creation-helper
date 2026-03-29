@@ -19,7 +19,7 @@ const TARGET_PER_CHANNEL = 50;
 const REQUIRED_IDS = new Set([
   'silavetrasila_5403', 'silavetrasila_3938', 'silavetrasila_8156', 'silavetrasila_8184',
   'silavetrasila_6630', 'silavetrasila_6905', 'silavetrasila_5251', 'silavetrasila_7420',
-  'silavetrasila_7742',
+  'silavetrasila_7742', 'silavetrasila_558', 'silavetrasila_1078',
   'meetingplace_news_176', 'meetingplace_news_3', 'meetingplace_news_367',
   'meetingplace_news_32', 'meetingplace_news_137',
   'regataveka_35', 'regataveka_64',

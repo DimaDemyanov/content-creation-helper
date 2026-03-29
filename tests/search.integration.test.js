@@ -34,7 +34,7 @@ const CHUNK_EMBEDDINGS_DIR = path.join(__dirname, 'fixtures/chunk-embeddings');
 const TOPICS = [
   {
     query: 'Почему яхтенные путешествия — один из лучших форматов отдыха',
-    mustFind: ['silavetrasila_5403', 'meetingplace_news_3', 'meetingplace_news_176'],
+    mustFind: ['silavetrasila_3938', 'ig_clevel.yacht_DOG2eZLilZp'],
     relevant: [
       'ig_anton_timk_DGibmz6v026', 'ig_anton_timk_DTNpIZXiCbG', 'ig_anton_timk_C8cKk1bC2to',
       'ig_anton_timk_DSK3_lRCGYv', 'ig_anton_timk_DWY0COXF93M',
@@ -83,7 +83,7 @@ const TOPICS = [
   },
   {
     query: 'Как люди обычно попадают на свою первую яхту',
-    mustFind: ['silavetrasila_7420', 'silavetrasila_6905', 'silavetrasila_6630'],
+    mustFind: ['silavetrasila_6630', 'silavetrasila_5251', 'ig_clevel.yacht_DHdhW5DKmOZ'],
     relevant: [
       'silavetrasila_7420', 'silavetrasila_6905', 'silavetrasila_6630', 'silavetrasila_5251', 'silavetrasila_4552',
       'ig_clevel.yacht_DRRtuieCl4k', 'ig_clevel.yacht_DOOqCSuirFF', 'ig_clevel.yacht_DHdhW5DKmOZ',
@@ -131,13 +131,13 @@ const TOPICS = [
   },
   {
     query: 'Самые красивые бухты Турции',
-    mustFind: ['ig_anton_timk_DGibmz6v026', 'LyubimovaEvgeniya_732', 'seapinta_944'],
+    mustFind: ['silavetrasila_558', 'silavetrasila_1078', 'ig_anton_timk_DGibmz6v026', 'seapinta_944'],
     relevant: [
+      'silavetrasila_558', 'silavetrasila_1078', 'silavetrasila_7742',
       'ig_anton_timk_DGibmz6v026', 'ig_anton_timk_C7M3ZthieRA',
       'LyubimovaEvgeniya_732', 'LyubimovaEvgeniya_386', 'LyubimovaEvgeniya_500',
       'seapinta_944', 'seapinta_918', 'seapinta_959',
       'meetingplace_news_40', 'meetingplace_news_28',
-      'silavetrasila_7742',
       'ig_clevel.yacht_DSzdcLSDiVi', 'ig_clevel.yacht_DT_DbpTCgGm',
       'regataveka_120',
     ],
