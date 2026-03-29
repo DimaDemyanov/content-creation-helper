@@ -22,48 +22,109 @@ const POSTS_DIR = path.join(__dirname, 'fixtures/posts');
 const EMBEDDINGS_DIR = path.join(__dirname, 'fixtures/embeddings');
 const CHUNK_EMBEDDINGS_DIR = path.join(__dirname, 'fixtures/chunk-embeddings');
 
-// Ground truth: для каждой темы — какие посты должны попасть в top-5
-// Достаточно попадания хотя бы одного из списка (Hit@5)
+// Ground truth: полная разметка по каждой теме.
+// Метрика Hit@5: хотя бы 1 из relevant попал в top-5.
 const TOPICS = [
   {
     query: 'Почему яхтенные путешествия — один из лучших форматов отдыха',
-    relevant: ['silavetrasila_5403', 'silavetrasila_3938', 'meetingplace_news_176', 'meetingplace_news_3'],
+    relevant: [
+      'ig_anton_timk_DGibmz6v026', 'ig_anton_timk_DTNpIZXiCbG', 'ig_anton_timk_C8cKk1bC2to',
+      'ig_anton_timk_DSK3_lRCGYv', 'ig_anton_timk_DWY0COXF93M',
+      'ig_clevel.yacht_DVwJ3JUj9qo', 'ig_clevel.yacht_DUivkh2iqD3', 'ig_clevel.yacht_DOlH6fwijjn',
+      'ig_clevel.yacht_DOvz8Xfiszo', 'ig_clevel.yacht_DRRtuieCl4k', 'ig_clevel.yacht_DFNka1_qMFk',
+      'ig_clevel.yacht_DPMO2zACrOr', 'ig_clevel.yacht_DOOqCSuirFF', 'ig_clevel.yacht_DT_DbpTCgGm',
+      'ig_clevel.yacht_DQ_oXPlD3Kg', 'ig_clevel.yacht_DUTaVm7D4kR', 'ig_clevel.yacht_DSc5KoijmDw',
+      'ig_clevel.yacht_DLC3sJcqR7s',
+      'meetingplace_news_176', 'meetingplace_news_28', 'meetingplace_news_96',
+      'meetingplace_news_3', 'meetingplace_news_99',
+      'silavetrasila_3938', 'silavetrasila_5403',
+    ],
   },
   {
     query: 'До конца предпродажи осталось 6 дней',
-    relevant: ['regataveka_35', 'silavetrasila_8156', 'silavetrasila_8184'],
+    relevant: [
+      'regataveka_35', 'regataveka_180',
+      'ig_clevel.yacht_DOlH6fwijjn', 'ig_clevel.yacht_DIbHiPlK7al', 'ig_clevel.yacht_DNdN49UKGXn',
+      'ig_clevel.yacht_DOvz8Xfiszo', 'ig_clevel.yacht_DU0tWdgio0F', 'ig_clevel.yacht_DPgk_DUDT8C',
+      'ig_clevel.yacht_DVL1SPljfIH', 'ig_clevel.yacht_DRe1kpyCjbD', 'ig_clevel.yacht_DTxfTDojTmI',
+      'ig_clevel.yacht_DSnQ7bxCjaQ',
+      'ig_anton_timk_C1g6wmvrbte', 'ig_anton_timk_C1ttKHliZQJ',
+      'silavetrasila_8156', 'silavetrasila_8184', 'silavetrasila_6542', 'silavetrasila_6596',
+      'meetingplace_news_344',
+    ],
   },
   {
     query: 'Как проходит один день на яхте',
-    relevant: ['meetingplace_news_367', 'meetingplace_news_32', 'regataveka_64'],
+    relevant: [
+      'meetingplace_news_32', 'meetingplace_news_367', 'meetingplace_news_314',
+      'regataveka_64', 'regataveka_83', 'regataveka_88', 'regataveka_95', 'regataveka_112', 'regataveka_120',
+      'ig_clevel.yacht_DOG2eZLilZp', 'ig_clevel.yacht_DFNka1_qMFk', 'ig_clevel.yacht_DGgRXqaqMSO',
+      'silavetrasila_6286',
+    ],
   },
   {
     query: 'Как выйти замуж на яхте',
-    relevant: ['ig_clevel.yacht_DPvo6ACCtm7', 'seapinta_549'],
+    relevant: [
+      'seapinta_549', 'ig_clevel.yacht_DPvo6ACCtm7',
+    ],
   },
   {
     query: 'Как люди обычно попадают на свою первую яхту',
-    relevant: ['silavetrasila_6630', 'silavetrasila_6905', 'silavetrasila_5251', 'silavetrasila_7420'],
+    relevant: [
+      'silavetrasila_7420', 'silavetrasila_6905', 'silavetrasila_6630', 'silavetrasila_5251', 'silavetrasila_4552',
+      'ig_clevel.yacht_DRRtuieCl4k', 'ig_clevel.yacht_DOOqCSuirFF', 'ig_clevel.yacht_DHdhW5DKmOZ',
+      'ig_clevel.yacht_DR7XTb8CqdW',
+      'ig_anton_timk_DUz0RkgDy6J',
+      'meetingplace_news_148',
+    ],
   },
   {
     query: '5 вещей, которые люди не ожидают от яхтенных путешествий',
-    relevant: ['LyubimovaEvgeniya_2122', 'LyubimovaEvgeniya_1510', 'LyubimovaEvgeniya_1656'],
+    relevant: [
+      'LyubimovaEvgeniya_1510', 'LyubimovaEvgeniya_2122', 'LyubimovaEvgeniya_1656',
+      'ig_clevel.yacht_DR7XTb8CqdW', 'ig_clevel.yacht_DUivkh2iqD3',
+      'ig_clevel.yacht_DLz0Du5KCZv', 'ig_clevel.yacht_DPMO2zACrOr',
+    ],
   },
   {
     query: 'Что будет на регате в Турции (5 лодок)',
-    relevant: ['ig_clevel.yacht_DSzdcLSDiVi', 'ig_clevel.yacht_DRe1kpyCjbD', 'silavetrasila_7742'],
+    relevant: [
+      'regataveka_40', 'regataveka_29', 'regataveka_64', 'regataveka_70', 'regataveka_69',
+      'regataveka_83', 'regataveka_88', 'regataveka_95', 'regataveka_112', 'regataveka_120',
+      'regataveka_73', 'regataveka_82', 'regataveka_63',
+      'ig_clevel.yacht_DGgRXqaqMSO', 'ig_clevel.yacht_DSzdcLSDiVi', 'ig_clevel.yacht_DRe1kpyCjbD',
+      'ig_clevel.yacht_DLC3sJcqR7s', 'ig_clevel.yacht_DEXaJnGKeQv', 'ig_clevel.yacht_DSc5KoijmDw',
+      'ig_clevel.yacht_DVRPXpmiiZS', 'ig_clevel.yacht_DIWNtd3KIDo',
+      'silavetrasila_7742',
+    ],
   },
   {
     query: 'История: акула и камера',
-    relevant: ['meetingplace_news_137'],
+    relevant: [
+      'meetingplace_news_137',
+      'ig_anton_timk_DQzdFtlExmi', 'ig_anton_timk_DUVqzSZD87t', 'ig_anton_timk_C2cpF7kNFtM',
+      'seapinta_920',
+    ],
   },
   {
     query: 'Самые красивые бухты Турции',
-    relevant: ['ig_anton_timk_DGibmz6v026', 'LyubimovaEvgeniya_386', 'LyubimovaEvgeniya_732'],
+    relevant: [
+      'ig_anton_timk_DGibmz6v026',
+      'LyubimovaEvgeniya_732', 'LyubimovaEvgeniya_386',
+      'seapinta_944',
+      'meetingplace_news_40',
+      'silavetrasila_7742',
+      'ig_clevel.yacht_DSzdcLSDiVi',
+      'regataveka_120',
+    ],
   },
   {
     query: 'История: как мы сели на мель',
-    relevant: ['LyubimovaEvgeniya_2118', 'LyubimovaEvgeniya_1865'],
+    relevant: [
+      'LyubimovaEvgeniya_2118', 'LyubimovaEvgeniya_514', 'LyubimovaEvgeniya_381',
+      'LyubimovaEvgeniya_1865', 'LyubimovaEvgeniya_479', 'LyubimovaEvgeniya_2125',
+      'seapinta_882', 'ig_anton_timk_DV3RPRAD3hu',
+    ],
   },
 ];
 
