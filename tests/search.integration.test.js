@@ -22,11 +22,19 @@ const POSTS_DIR = path.join(__dirname, 'fixtures/posts');
 const EMBEDDINGS_DIR = path.join(__dirname, 'fixtures/embeddings');
 const CHUNK_EMBEDDINGS_DIR = path.join(__dirname, 'fixtures/chunk-embeddings');
 
-// Ground truth: полная разметка по каждой теме.
-// Метрика Hit@5: хотя бы 1 из relevant попал в top-5.
+// Ground truth по каждой теме.
+//
+// relevant  — все посты которые релевантны теме (широкая разметка)
+// mustFind  — 2–3 самых прямых попадания (строгий ground truth)
+//
+// Метрики:
+//   Hit@5(relevant)  — хотя бы 1 из relevant в top-5     (мягко, показывает recall)
+//   Hit@5(mustFind)  — хотя бы 1 из mustFind в top-5     (строго, показывает precision)
+//   MRR(relevant)    — 1/rank первого попадания, среднее  (показывает ранг, не только факт)
 const TOPICS = [
   {
     query: 'Почему яхтенные путешествия — один из лучших форматов отдыха',
+    mustFind: ['silavetrasila_5403', 'meetingplace_news_3', 'meetingplace_news_176'],
     relevant: [
       'ig_anton_timk_DGibmz6v026', 'ig_anton_timk_DTNpIZXiCbG', 'ig_anton_timk_C8cKk1bC2to',
       'ig_anton_timk_DSK3_lRCGYv', 'ig_anton_timk_DWY0COXF93M',
@@ -42,6 +50,7 @@ const TOPICS = [
   },
   {
     query: 'До конца предпродажи осталось 6 дней',
+    mustFind: ['regataveka_35', 'silavetrasila_8156', 'silavetrasila_8184'],
     relevant: [
       'regataveka_35', 'regataveka_180',
       'ig_clevel.yacht_DOlH6fwijjn', 'ig_clevel.yacht_DIbHiPlK7al', 'ig_clevel.yacht_DNdN49UKGXn',
@@ -55,6 +64,7 @@ const TOPICS = [
   },
   {
     query: 'Как проходит один день на яхте',
+    mustFind: ['meetingplace_news_367', 'meetingplace_news_32', 'regataveka_64'],
     relevant: [
       'meetingplace_news_32', 'meetingplace_news_367', 'meetingplace_news_314',
       'regataveka_64', 'regataveka_83', 'regataveka_88', 'regataveka_95', 'regataveka_112', 'regataveka_120',
@@ -64,12 +74,12 @@ const TOPICS = [
   },
   {
     query: 'Как выйти замуж на яхте',
-    relevant: [
-      'seapinta_549', 'ig_clevel.yacht_DPvo6ACCtm7',
-    ],
+    mustFind: ['seapinta_549', 'ig_clevel.yacht_DPvo6ACCtm7'],
+    relevant: ['seapinta_549', 'ig_clevel.yacht_DPvo6ACCtm7'],
   },
   {
     query: 'Как люди обычно попадают на свою первую яхту',
+    mustFind: ['silavetrasila_7420', 'silavetrasila_6905', 'silavetrasila_6630'],
     relevant: [
       'silavetrasila_7420', 'silavetrasila_6905', 'silavetrasila_6630', 'silavetrasila_5251', 'silavetrasila_4552',
       'ig_clevel.yacht_DRRtuieCl4k', 'ig_clevel.yacht_DOOqCSuirFF', 'ig_clevel.yacht_DHdhW5DKmOZ',
@@ -80,6 +90,7 @@ const TOPICS = [
   },
   {
     query: '5 вещей, которые люди не ожидают от яхтенных путешествий',
+    mustFind: ['LyubimovaEvgeniya_2122', 'LyubimovaEvgeniya_1510'],
     relevant: [
       'LyubimovaEvgeniya_1510', 'LyubimovaEvgeniya_2122', 'LyubimovaEvgeniya_1656',
       'ig_clevel.yacht_DR7XTb8CqdW', 'ig_clevel.yacht_DUivkh2iqD3',
@@ -88,6 +99,7 @@ const TOPICS = [
   },
   {
     query: 'Что будет на регате в Турции (5 лодок)',
+    mustFind: ['ig_clevel.yacht_DSzdcLSDiVi', 'ig_clevel.yacht_DRe1kpyCjbD', 'silavetrasila_7742'],
     relevant: [
       'regataveka_40', 'regataveka_29', 'regataveka_64', 'regataveka_70', 'regataveka_69',
       'regataveka_83', 'regataveka_88', 'regataveka_95', 'regataveka_112', 'regataveka_120',
@@ -100,6 +112,7 @@ const TOPICS = [
   },
   {
     query: 'История: акула и камера',
+    mustFind: ['meetingplace_news_137'],
     relevant: [
       'meetingplace_news_137',
       'ig_anton_timk_DQzdFtlExmi', 'ig_anton_timk_DUVqzSZD87t', 'ig_anton_timk_C2cpF7kNFtM',
@@ -108,6 +121,7 @@ const TOPICS = [
   },
   {
     query: 'Самые красивые бухты Турции',
+    mustFind: ['ig_anton_timk_DGibmz6v026', 'LyubimovaEvgeniya_732', 'seapinta_944'],
     relevant: [
       'ig_anton_timk_DGibmz6v026',
       'LyubimovaEvgeniya_732', 'LyubimovaEvgeniya_386',
@@ -120,6 +134,7 @@ const TOPICS = [
   },
   {
     query: 'История: как мы сели на мель',
+    mustFind: ['LyubimovaEvgeniya_2118', 'LyubimovaEvgeniya_514'],
     relevant: [
       'LyubimovaEvgeniya_2118', 'LyubimovaEvgeniya_514', 'LyubimovaEvgeniya_381',
       'LyubimovaEvgeniya_1865', 'LyubimovaEvgeniya_479', 'LyubimovaEvgeniya_2125',
@@ -137,6 +152,12 @@ function hit(results, relevant) {
 
 function firstHitPosition(results, relevant) {
   return results.findIndex(r => relevant.includes(r.id)) + 1; // 1-based, 0 если не найдено
+}
+
+// MRR = 1/rank первого попадания (0 если не найдено)
+function rr(results, relevant) {
+  const pos = firstHitPosition(results, relevant);
+  return pos > 0 ? 1 / pos : 0;
 }
 
 // --- BM25 ---
@@ -278,7 +299,8 @@ describe('Гибридный поиск HyDE (hybridSearchHyDE)', () => {
 describe('Сводный отчёт Hit@5', () => {
   it('выводит таблицу по всем методам', async () => {
     const rows = [];
-    for (const { query, relevant } of TOPICS) {
+    const mrrs = [];
+    for (const { query, relevant, mustFind } of TOPICS) {
       const [bm25, vec, hybrid, hyde, rrf] = await Promise.all([
         search(query, TOP_K, { postsDir: POSTS_DIR }),
         vectorSearch(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR }),
@@ -286,23 +308,39 @@ describe('Сводный отчёт Hit@5', () => {
         vectorSearchHyDE(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR }),
         hybridSearchRRF(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR }),
       ]);
+      const fmt = (results, rel, must) => {
+        const pos = firstHitPosition(results, rel);
+        const strict = hit(results, must) ? '★' : ' ';
+        return pos > 0 ? `${strict}✅${pos}` : '❌';
+      };
       rows.push({
-        query:  query.slice(0, 38),
-        bm25:   hit(bm25, relevant)   ? `✅${firstHitPosition(bm25, relevant)}`   : '❌',
-        vec:    hit(vec, relevant)    ? `✅${firstHitPosition(vec, relevant)}`    : '❌',
-        hybrid: hit(hybrid, relevant) ? `✅${firstHitPosition(hybrid, relevant)}` : '❌',
-        hyde:   hit(hyde, relevant)   ? `✅${firstHitPosition(hyde, relevant)}`   : '❌',
-        rrf:    hit(rrf, relevant)    ? `✅${firstHitPosition(rrf, relevant)}`    : '❌',
+        query:  query.slice(0, 36),
+        bm25:   fmt(bm25,   relevant, mustFind),
+        vec:    fmt(vec,    relevant, mustFind),
+        hybrid: fmt(hybrid, relevant, mustFind),
+        hyde:   fmt(hyde,   relevant, mustFind),
+        rrf:    fmt(rrf,    relevant, mustFind),
+      });
+      mrrs.push({
+        bm25:   rr(bm25,   relevant),
+        vec:    rr(vec,    relevant),
+        hybrid: rr(hybrid, relevant),
+        hyde:   rr(hyde,   relevant),
+        rrf:    rr(rrf,    relevant),
       });
     }
+
+    console.log('\nЛегенда: ★✅N = mustFind найден на позиции N | ✅N = relevant найден | ❌ = не найден\n');
     console.table(rows);
 
-    const score = (col) => rows.filter(r => r[col].startsWith('✅')).length;
-    console.log(`\nИтого Hit@${TOP_K}:`);
-    console.log(`  BM25       = ${score('bm25')}/10`);
-    console.log(`  Vector     = ${score('vec')}/10`);
-    console.log(`  Hybrid     = ${score('hybrid')}/10`);
-    console.log(`  HyDE       = ${score('hyde')}/10`);
-    console.log(`  RRF ★      = ${score('rrf')}/10`);
+    const hit5 = (col) => rows.filter(r => r[col].includes('✅')).length;
+    const hit5strict = (col) => rows.filter(r => r[col].startsWith('★')).length;
+    const meanRR = (col) => (mrrs.reduce((s, r) => s + r[col], 0) / mrrs.length).toFixed(2);
+
+    console.log(`\n${'Метод'.padEnd(10)} Hit@5(any)  Hit@5(must)  MRR`);
+    console.log('─'.repeat(42));
+    for (const col of ['bm25', 'vec', 'hybrid', 'hyde', 'rrf']) {
+      console.log(`${col.padEnd(10)} ${String(hit5(col)+'/10').padEnd(12)} ${String(hit5strict(col)+'/10').padEnd(13)} ${meanRR(col)}`);
+    }
   }, 180_000);
 });
