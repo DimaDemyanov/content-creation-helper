@@ -47,7 +47,7 @@ const TOPICS = [
       'meetingplace_news_176', 'meetingplace_news_28', 'meetingplace_news_40',
       'meetingplace_news_3', 'meetingplace_news_99',
       'silavetrasila_3938', 'silavetrasila_5403',
-      'regataveka_29', 'regataveka_70',
+      'regataveka_70',
     ],
   },
   {
