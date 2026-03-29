@@ -14,7 +14,7 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { describe, it, expect } from 'vitest';
-import { search, vectorSearch, hybridSearch, vectorSearchHyDE, hybridSearchHyDE, hybridSearchFull, hybridSearchRRF } from '../search/index.js';
+import { search, vectorSearch, hybridSearch, vectorSearchChunked, hybridSearchChunked, vectorSearchHyDE, hybridSearchHyDE, hybridSearchFull, hybridSearchRRF } from '../search/index.js';
 import { loadAllEmbeddings, loadAllChunkEmbeddings } from '../search/embeddings.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
