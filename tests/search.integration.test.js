@@ -38,7 +38,6 @@ const TOPICS = [
     relevant: [
       'ig_anton_timk_DGibmz6v026', 'ig_anton_timk_DTNpIZXiCbG', 'ig_anton_timk_C8cKk1bC2to',
       'ig_anton_timk_DSK3_lRCGYv', 'ig_anton_timk_DWY0COXF93M',
-      'ig_anton_timk_DUz0RkgDy6J',
       'ig_clevel.yacht_DVwJ3JUj9qo', 'ig_clevel.yacht_DUivkh2iqD3', 'ig_clevel.yacht_DOlH6fwijjn',
       'ig_clevel.yacht_DOvz8Xfiszo', 'ig_clevel.yacht_DRRtuieCl4k', 'ig_clevel.yacht_DFNka1_qMFk',
       'ig_clevel.yacht_DPMO2zACrOr', 'ig_clevel.yacht_DOOqCSuirFF', 'ig_clevel.yacht_DT_DbpTCgGm',
@@ -58,7 +57,7 @@ const TOPICS = [
       'meetingplace_news_32', 'meetingplace_news_367', 'meetingplace_news_314',
       'regataveka_64', 'regataveka_83', 'regataveka_88', 'regataveka_95', 'regataveka_112', 'regataveka_120',
       'ig_clevel.yacht_DOG2eZLilZp', 'ig_clevel.yacht_DFNka1_qMFk', 'ig_clevel.yacht_DGgRXqaqMSO',
-      'silavetrasila_6286', 'silavetrasila_6905',
+      'silavetrasila_6286',
     ],
   },
   {
@@ -72,7 +71,7 @@ const TOPICS = [
     relevant: [
       'silavetrasila_7420', 'silavetrasila_6905', 'silavetrasila_6630', 'silavetrasila_5251',
       'ig_clevel.yacht_DRRtuieCl4k', 'ig_clevel.yacht_DOOqCSuirFF', 'ig_clevel.yacht_DHdhW5DKmOZ',
-      'ig_clevel.yacht_DR7XTb8CqdW', 'ig_clevel.yacht_DGgRXqaqMSO', 'ig_clevel.yacht_DVBaeYfjcex',
+      'ig_clevel.yacht_DR7XTb8CqdW',
       'ig_anton_timk_DUz0RkgDy6J',
       'meetingplace_news_148',
     ],
@@ -81,11 +80,10 @@ const TOPICS = [
     query: '5 вещей, которые люди не ожидают от яхтенных путешествий',
     mustFind: ['LyubimovaEvgeniya_2122', 'LyubimovaEvgeniya_1510'],
     relevant: [
-      'LyubimovaEvgeniya_1510', 'LyubimovaEvgeniya_2122', 'LyubimovaEvgeniya_1656', 'LyubimovaEvgeniya_1811',
+      'LyubimovaEvgeniya_1510', 'LyubimovaEvgeniya_2122', 'LyubimovaEvgeniya_1656',
       'ig_clevel.yacht_DR7XTb8CqdW', 'ig_clevel.yacht_DUivkh2iqD3',
       'ig_clevel.yacht_DLz0Du5KCZv', 'ig_clevel.yacht_DPMO2zACrOr',
       'ig_clevel.yacht_DWRnwajj9y7',
-      'meetingplace_news_96',
     ],
   },
   {
@@ -118,8 +116,7 @@ const TOPICS = [
     relevant: [
       'silavetrasila_558', 'silavetrasila_1078', 'silavetrasila_7742',
       'ig_anton_timk_DGibmz6v026',
-      'LyubimovaEvgeniya_732', 'LyubimovaEvgeniya_386',
-      'seapinta_944', 'seapinta_959',
+      'seapinta_944',
       'meetingplace_news_40', 'meetingplace_news_28',
       'ig_clevel.yacht_DSzdcLSDiVi', 'ig_clevel.yacht_DT_DbpTCgGm',
       'regataveka_120',
