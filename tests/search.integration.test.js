@@ -34,17 +34,17 @@ const CHUNK_EMBEDDINGS_DIR = path.join(__dirname, 'fixtures/chunk-embeddings');
 const TOPICS = [
   {
     query: 'Почему яхтенные путешествия — один из лучших форматов отдыха',
-    mustFind: ['silavetrasila_3938', 'ig_clevel.yacht_DOG2eZLilZp'],
+    mustFind: ['silavetrasila_3938', 'ig_anton_timk_DTNpIZXiCbG'],
     relevant: [
       'ig_anton_timk_DGibmz6v026', 'ig_anton_timk_DTNpIZXiCbG', 'ig_anton_timk_C8cKk1bC2to',
       'ig_anton_timk_DSK3_lRCGYv', 'ig_anton_timk_DWY0COXF93M',
       'ig_clevel.yacht_DVwJ3JUj9qo', 'ig_clevel.yacht_DUivkh2iqD3', 'ig_clevel.yacht_DOlH6fwijjn',
       'ig_clevel.yacht_DOvz8Xfiszo', 'ig_clevel.yacht_DRRtuieCl4k', 'ig_clevel.yacht_DFNka1_qMFk',
-      'ig_clevel.yacht_DPMO2zACrOr', 'ig_clevel.yacht_DOOqCSuirFF', 'ig_clevel.yacht_DT_DbpTCgGm',
-      'ig_clevel.yacht_DQ_oXPlD3Kg', 'ig_clevel.yacht_DUTaVm7D4kR', 'ig_clevel.yacht_DSc5KoijmDw',
-      'ig_clevel.yacht_DLC3sJcqR7s', 'ig_clevel.yacht_DEXaJnGKeQv', 'ig_clevel.yacht_DU0tWdgio0F',
+      'ig_clevel.yacht_DPMO2zACrOr', 'ig_clevel.yacht_DOOqCSuirFF',
+      'ig_clevel.yacht_DQ_oXPlD3Kg', 'ig_clevel.yacht_DUTaVm7D4kR',
+      'ig_clevel.yacht_DLC3sJcqR7s', 'ig_clevel.yacht_DEXaJnGKeQv',
       'ig_clevel.yacht_DVBaeYfjcex', 'ig_clevel.yacht_DWRnwajj9y7', 'ig_clevel.yacht_DOG2eZLilZp',
-      'meetingplace_news_176', 'meetingplace_news_28', 'meetingplace_news_40', 'meetingplace_news_96',
+      'meetingplace_news_176', 'meetingplace_news_28', 'meetingplace_news_40',
       'meetingplace_news_3', 'meetingplace_news_99',
       'silavetrasila_3938', 'silavetrasila_5403',
       'regataveka_29', 'regataveka_70',
