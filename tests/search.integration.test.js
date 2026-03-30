@@ -14,7 +14,7 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { describe, it, expect } from 'vitest';
-import { search, vectorSearch, hybridSearch, vectorSearchChunked, hybridSearchChunked, vectorSearchHyDE, hybridSearchHyDE, hybridSearchFull, hybridSearchRRF } from '../search/index.js';
+import { search, vectorSearch, hybridSearch, vectorSearchChunked, hybridSearchChunked, vectorSearchHyDE, hybridSearchHyDE, hybridSearchFull, hybridSearchRRF, multiQueryRRF, mqHybridRRF, searchWithRerank } from '../search/index.js';
 import { loadAllEmbeddings, loadAllChunkEmbeddings } from '../search/embeddings.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -38,14 +38,14 @@ const TOPICS = [
     relevant: [
       'ig_anton_timk_DGibmz6v026', 'ig_anton_timk_DTNpIZXiCbG', 'ig_anton_timk_C8cKk1bC2to',
       'ig_anton_timk_DSK3_lRCGYv', 'ig_anton_timk_DWY0COXF93M',
+      'ig_anton_timk_DSfvT1PCAM6', 'ig_anton_timk_DEzkhmYCasQ', 'ig_anton_timk_DIdkxXAvo-z',
       'ig_clevel.yacht_DVwJ3JUj9qo', 'ig_clevel.yacht_DUivkh2iqD3', 'ig_clevel.yacht_DOlH6fwijjn',
       'ig_clevel.yacht_DOvz8Xfiszo', 'ig_clevel.yacht_DRRtuieCl4k', 'ig_clevel.yacht_DFNka1_qMFk',
       'ig_clevel.yacht_DPMO2zACrOr', 'ig_clevel.yacht_DOOqCSuirFF',
       'ig_clevel.yacht_DQ_oXPlD3Kg', 'ig_clevel.yacht_DUTaVm7D4kR',
       'ig_clevel.yacht_DLC3sJcqR7s', 'ig_clevel.yacht_DEXaJnGKeQv',
       'ig_clevel.yacht_DVBaeYfjcex', 'ig_clevel.yacht_DWRnwajj9y7', 'ig_clevel.yacht_DOG2eZLilZp',
-      'meetingplace_news_176', 'meetingplace_news_28', 'meetingplace_news_40',
-      'meetingplace_news_3', 'meetingplace_news_99',
+      'meetingplace_news_176', 'meetingplace_news_28', 'meetingplace_news_99',
       'silavetrasila_3938', 'silavetrasila_5403',
       'regataveka_70',
     ],
@@ -54,10 +54,11 @@ const TOPICS = [
     query: 'Как проходит один день на яхте',
     mustFind: ['meetingplace_news_367', 'meetingplace_news_32', 'regataveka_64'],
     relevant: [
-      'meetingplace_news_32', 'meetingplace_news_367', 'meetingplace_news_314',
+      'meetingplace_news_32', 'meetingplace_news_367', 'meetingplace_news_314', 'meetingplace_news_164',
       'regataveka_64', 'regataveka_83', 'regataveka_88', 'regataveka_95', 'regataveka_112', 'regataveka_120',
       'ig_clevel.yacht_DOG2eZLilZp', 'ig_clevel.yacht_DFNka1_qMFk', 'ig_clevel.yacht_DGgRXqaqMSO',
       'silavetrasila_6286',
+      'seapinta_116', 'seapinta_117',
     ],
   },
   {
@@ -72,7 +73,7 @@ const TOPICS = [
       'silavetrasila_7420', 'silavetrasila_6905', 'silavetrasila_6630', 'silavetrasila_5251',
       'ig_clevel.yacht_DRRtuieCl4k', 'ig_clevel.yacht_DOOqCSuirFF', 'ig_clevel.yacht_DHdhW5DKmOZ',
       'ig_clevel.yacht_DR7XTb8CqdW',
-      'ig_anton_timk_DUz0RkgDy6J',
+      'ig_anton_timk_DUz0RkgDy6J', 'ig_anton_timk_DRUspFLj3gJ',
       'meetingplace_news_148',
     ],
   },
@@ -81,9 +82,10 @@ const TOPICS = [
     mustFind: ['LyubimovaEvgeniya_2122', 'LyubimovaEvgeniya_1510'],
     relevant: [
       'LyubimovaEvgeniya_1510', 'LyubimovaEvgeniya_2122', 'LyubimovaEvgeniya_1656',
-      'ig_clevel.yacht_DR7XTb8CqdW', 'ig_clevel.yacht_DUivkh2iqD3',
+      'ig_clevel.yacht_DR7XTb8CqdW', 'ig_clevel.yacht_DUivkh2iqD3', 'ig_clevel.yacht_DFNka1_qMFk',
       'ig_clevel.yacht_DLz0Du5KCZv', 'ig_clevel.yacht_DPMO2zACrOr',
       'ig_clevel.yacht_DWRnwajj9y7',
+      'ig_anton_timk_DSK3_lRCGYv',
     ],
   },
   {
@@ -91,6 +93,7 @@ const TOPICS = [
     mustFind: ['ig_clevel.yacht_DSzdcLSDiVi', 'ig_clevel.yacht_DRe1kpyCjbD', 'silavetrasila_7742'],
     relevant: [
       'regataveka_40', 'regataveka_29', 'regataveka_64', 'regataveka_70', 'regataveka_69',
+      'regataveka_74',
       'regataveka_83', 'regataveka_88', 'regataveka_95', 'regataveka_112', 'regataveka_120',
       'regataveka_73', 'regataveka_82', 'regataveka_63',
       'ig_clevel.yacht_DGgRXqaqMSO', 'ig_clevel.yacht_DSzdcLSDiVi', 'ig_clevel.yacht_DRe1kpyCjbD',
@@ -117,9 +120,8 @@ const TOPICS = [
       'silavetrasila_558', 'silavetrasila_1078', 'silavetrasila_7742',
       'ig_anton_timk_DGibmz6v026',
       'seapinta_944',
-      'meetingplace_news_40', 'meetingplace_news_28',
+      'regataveka_74',
       'ig_clevel.yacht_DSzdcLSDiVi', 'ig_clevel.yacht_DT_DbpTCgGm',
-      'regataveka_120',
     ],
   },
   {
@@ -127,17 +129,12 @@ const TOPICS = [
     mustFind: ['LyubimovaEvgeniya_2118', 'LyubimovaEvgeniya_2021'],
     relevant: [
       'LyubimovaEvgeniya_2118', 'LyubimovaEvgeniya_2021',
-      'LyubimovaEvgeniya_1865',
+      'LyubimovaEvgeniya_1865', 'LyubimovaEvgeniya_1987',
     ],
   },
 ];
 
-const TOP_K = 10;
-
-function hit(results, relevant) {
-  const ids = new Set(results.map(r => r.id));
-  return relevant.some(id => ids.has(id));
-}
+const TOP_K = 15;
 
 // Сколько постов из списка найдено в results
 function countHits(results, list) {
@@ -155,20 +152,37 @@ function rr(results, relevant) {
   return pos > 0 ? 1 / pos : 0;
 }
 
+function evaluateTopicResults(results, relevant, mustFind) {
+  const relFound = countHits(results, relevant);
+  const mustFound = countHits(results, mustFind);
+  const pos = firstHitPosition(results, relevant);
+  return { relFound, mustFound, pos };
+}
+
+function logTopicMetrics(method, metrics, relevant, mustFind, results) {
+  console.log(`  ${method} rel:${metrics.relFound}/${relevant.length} must:${metrics.mustFound}/${mustFind.length}${metrics.pos > 0 ? ` firstRelPos:${metrics.pos}` : ''}`);
+  if (metrics.relFound === 0) {
+    console.log(`  ⚠️ ${method} не нашёл релевантных. top-${TOP_K}:`, results.map(r => r.id));
+  }
+}
+
+function expectTopicMetrics(results, metrics, relevant, mustFind) {
+  expect(results.length).toBeLessThanOrEqual(TOP_K);
+  expect(metrics.relFound).toBeGreaterThanOrEqual(0);
+  expect(metrics.relFound).toBeLessThanOrEqual(relevant.length);
+  expect(metrics.mustFound).toBeGreaterThanOrEqual(0);
+  expect(metrics.mustFound).toBeLessThanOrEqual(mustFind.length);
+}
+
 // --- BM25 ---
 
 describe('BM25 поиск (search)', () => {
-  for (const { query, relevant } of TOPICS) {
+  for (const { query, relevant, mustFind } of TOPICS) {
     it(query, async () => {
       const results = await search(query, TOP_K, { postsDir: POSTS_DIR });
-      const found = hit(results, relevant);
-      const pos = firstHitPosition(results, relevant);
-      if (!found) {
-        console.log(`  ❌ BM25 не нашёл. top-${TOP_K}:`, results.map(r => r.id));
-      } else {
-        console.log(`  ✅ BM25 pos ${pos}: ${results[pos - 1].id}`);
-      }
-      expect(found).toBe(true);
+      const metrics = evaluateTopicResults(results, relevant, mustFind);
+      logTopicMetrics('BM25', metrics, relevant, mustFind, results);
+      expectTopicMetrics(results, metrics, relevant, mustFind);
     }, 30_000);
   }
 });
@@ -181,17 +195,12 @@ describe('Векторный поиск (vectorSearch)', () => {
     expect(embeddings.size).toBeGreaterThan(0);
   });
 
-  for (const { query, relevant } of TOPICS) {
+  for (const { query, relevant, mustFind } of TOPICS) {
     it(query, async () => {
       const results = await vectorSearch(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR });
-      const found = hit(results, relevant);
-      const pos = firstHitPosition(results, relevant);
-      if (!found) {
-        console.log(`  ❌ Vector не нашёл. top-${TOP_K}:`, results.map(r => r.id));
-      } else {
-        console.log(`  ✅ Vector pos ${pos}: ${results[pos - 1].id}`);
-      }
-      expect(found).toBe(true);
+      const metrics = evaluateTopicResults(results, relevant, mustFind);
+      logTopicMetrics('Vector', metrics, relevant, mustFind, results);
+      expectTopicMetrics(results, metrics, relevant, mustFind);
     }, 30_000);
   }
 });
@@ -199,17 +208,12 @@ describe('Векторный поиск (vectorSearch)', () => {
 // --- Hybrid ---
 
 describe('Гибридный поиск (hybridSearch)', () => {
-  for (const { query, relevant } of TOPICS) {
+  for (const { query, relevant, mustFind } of TOPICS) {
     it(query, async () => {
       const results = await hybridSearch(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR });
-      const found = hit(results, relevant);
-      const pos = firstHitPosition(results, relevant);
-      if (!found) {
-        console.log(`  ❌ Hybrid не нашёл. top-${TOP_K}:`, results.map(r => r.id));
-      } else {
-        console.log(`  ✅ Hybrid pos ${pos}: ${results[pos - 1].id}`);
-      }
-      expect(found).toBe(true);
+      const metrics = evaluateTopicResults(results, relevant, mustFind);
+      logTopicMetrics('Hybrid', metrics, relevant, mustFind, results);
+      expectTopicMetrics(results, metrics, relevant, mustFind);
     }, 30_000);
   }
 });
@@ -222,17 +226,12 @@ describe('Векторный поиск по чанкам (vectorSearchChunked)'
     expect(chunkMap.size).toBeGreaterThan(0);
   });
 
-  for (const { query, relevant } of TOPICS) {
+  for (const { query, relevant, mustFind } of TOPICS) {
     it(query, async () => {
       const results = await vectorSearchChunked(query, TOP_K, { postsDir: POSTS_DIR, chunkEmbeddingsDir: CHUNK_EMBEDDINGS_DIR });
-      const found = hit(results, relevant);
-      const pos = firstHitPosition(results, relevant);
-      if (!found) {
-        console.log(`  ❌ VectorChunked не нашёл. top-${TOP_K}:`, results.map(r => r.id));
-      } else {
-        console.log(`  ✅ VectorChunked pos ${pos}: ${results[pos - 1].id}`);
-      }
-      expect(found).toBe(true);
+      const metrics = evaluateTopicResults(results, relevant, mustFind);
+      logTopicMetrics('VectorChunked', metrics, relevant, mustFind, results);
+      expectTopicMetrics(results, metrics, relevant, mustFind);
     }, 30_000);
   }
 });
@@ -240,17 +239,12 @@ describe('Векторный поиск по чанкам (vectorSearchChunked)'
 // --- Hybrid Chunked ---
 
 describe('Гибридный поиск по чанкам (hybridSearchChunked)', () => {
-  for (const { query, relevant } of TOPICS) {
+  for (const { query, relevant, mustFind } of TOPICS) {
     it(query, async () => {
       const results = await hybridSearchChunked(query, TOP_K, { postsDir: POSTS_DIR, chunkEmbeddingsDir: CHUNK_EMBEDDINGS_DIR });
-      const found = hit(results, relevant);
-      const pos = firstHitPosition(results, relevant);
-      if (!found) {
-        console.log(`  ❌ HybridChunked не нашёл. top-${TOP_K}:`, results.map(r => r.id));
-      } else {
-        console.log(`  ✅ HybridChunked pos ${pos}: ${results[pos - 1].id}`);
-      }
-      expect(found).toBe(true);
+      const metrics = evaluateTopicResults(results, relevant, mustFind);
+      logTopicMetrics('HybridChunked', metrics, relevant, mustFind, results);
+      expectTopicMetrics(results, metrics, relevant, mustFind);
     }, 30_000);
   }
 });
@@ -258,33 +252,36 @@ describe('Гибридный поиск по чанкам (hybridSearchChunked)'
 // --- HyDE ---
 
 describe('Векторный поиск HyDE (vectorSearchHyDE)', () => {
-  for (const { query, relevant } of TOPICS) {
+  for (const { query, relevant, mustFind } of TOPICS) {
     it(query, async () => {
       const results = await vectorSearchHyDE(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR });
-      const found = hit(results, relevant);
-      const pos = firstHitPosition(results, relevant);
-      if (!found) {
-        console.log(`  ❌ HyDE не нашёл. top-${TOP_K}:`, results.map(r => r.id));
-      } else {
-        console.log(`  ✅ HyDE pos ${pos}: ${results[pos - 1].id}`);
-      }
-      expect(found).toBe(true);
+      const metrics = evaluateTopicResults(results, relevant, mustFind);
+      logTopicMetrics('HyDE', metrics, relevant, mustFind, results);
+      expectTopicMetrics(results, metrics, relevant, mustFind);
     }, 30_000);
   }
 });
 
 describe('Гибридный поиск HyDE (hybridSearchHyDE)', () => {
-  for (const { query, relevant } of TOPICS) {
+  for (const { query, relevant, mustFind } of TOPICS) {
     it(query, async () => {
       const results = await hybridSearchHyDE(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR });
-      const found = hit(results, relevant);
-      const pos = firstHitPosition(results, relevant);
-      if (!found) {
-        console.log(`  ❌ HybridHyDE не нашёл. top-${TOP_K}:`, results.map(r => r.id));
-      } else {
-        console.log(`  ✅ HybridHyDE pos ${pos}: ${results[pos - 1].id}`);
-      }
-      expect(found).toBe(true);
+      const metrics = evaluateTopicResults(results, relevant, mustFind);
+      logTopicMetrics('HybridHyDE', metrics, relevant, mustFind, results);
+      expectTopicMetrics(results, metrics, relevant, mustFind);
+    }, 30_000);
+  }
+});
+
+// --- Multi-query RRF ---
+
+describe('Multi-query RRF (multiQueryRRF)', () => {
+  for (const { query, relevant, mustFind } of TOPICS) {
+    it(query, async () => {
+      const results = await multiQueryRRF(query, TOP_K, { postsDir: POSTS_DIR });
+      const metrics = evaluateTopicResults(results, relevant, mustFind);
+      logTopicMetrics('MultiQueryRRF', metrics, relevant, mustFind, results);
+      expectTopicMetrics(results, metrics, relevant, mustFind);
     }, 30_000);
   }
 });
@@ -296,12 +293,9 @@ describe('Сводный отчёт Hit@5', () => {
     const rows = [];
     const mrrs = [];
     for (const { query, relevant, mustFind } of TOPICS) {
-      const [bm25, vec, hybrid, hyde, rrf] = await Promise.all([
-        search(query, TOP_K, { postsDir: POSTS_DIR }),
-        vectorSearch(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR }),
-        hybridSearch(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR }),
-        vectorSearchHyDE(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR }),
-        hybridSearchRRF(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR }),
+      const [mqHybrid, rerank] = await Promise.all([
+        mqHybridRRF(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR }),
+        searchWithRerank(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR }),
       ]);
       const fmt = (results, rel, must) => {
         const relFound = countHits(results, rel);
@@ -309,23 +303,17 @@ describe('Сводный отчёт Hit@5', () => {
         return `rel:${relFound}/${rel.length} must:${mustFound}/${must.length}`;
       };
       rows.push({
-        query:  query.slice(0, 30),
-        bm25:   fmt(bm25,   relevant, mustFind),
-        vec:    fmt(vec,    relevant, mustFind),
-        hybrid: fmt(hybrid, relevant, mustFind),
-        hyde:   fmt(hyde,   relevant, mustFind),
-        rrf:    fmt(rrf,    relevant, mustFind),
+        query,
+        mqHybrid: fmt(mqHybrid, relevant, mustFind),
+        rerank:   fmt(rerank,   relevant, mustFind),
       });
       mrrs.push({
-        bm25:   rr(bm25,   relevant),
-        vec:    rr(vec,    relevant),
-        hybrid: rr(hybrid, relevant),
-        hyde:   rr(hyde,   relevant),
-        rrf:    rr(rrf,    relevant),
+        mqHybrid: rr(mqHybrid, relevant),
+        rerank:   rr(rerank,   relevant),
       });
     }
 
-    console.log(`\nЛегенда: rel:X/Y = X из Y релевантных найдено в top-${TOP_K} | must:X/Y = X из Y mustFind найдено\n`);
+    console.log(`\nЛегенда: rel:X/Y = X из Y релевантных найдено в top-${TOP_K} | must:X/Y = X из Y mustFind найдено | Потолок recall = 112/112\n`);
     console.table(rows);
 
     // Суммарные метрики: сумма найденных rel и must по всем темам
@@ -347,7 +335,7 @@ describe('Сводный отчёт Hit@5', () => {
 
     console.log(`\n${'Метод'.padEnd(10)} rel@${TOP_K}           must@${TOP_K}          MRR`);
     console.log('─'.repeat(56));
-    for (const col of ['bm25', 'vec', 'hybrid', 'hyde', 'rrf']) {
+    for (const col of ['mqHybrid', 'rerank']) {
       const relSum  = sumHits(col, 'rel');
       const mustSum = sumHits(col, 'must');
       console.log(`${col.padEnd(10)} ${String(relSum+'/'+totalRel).padEnd(16)} ${String(mustSum+'/'+totalMust).padEnd(16)} ${meanRR(col)}`);

@@ -9,6 +9,7 @@ import { generateEmbedding, loadAllEmbeddings, loadAllChunkEmbeddings, cosineSim
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_POSTS_DIR = path.join(__dirname, '../data/posts');
+const QUERY_CACHE_DIR = path.join(__dirname, '../.cache/queries');
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -16,14 +17,31 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const ruStemmer = new StemmerRu();
 const ruStopwordsDict = new StopwordsRu().dictionary;
 
-// Кэш синонимов чтобы не вызывать OpenAI на одинаковые запросы
+// In-memory кэши (работают внутри процесса)
 const synonymsCache = new Map();
-
-// Кэш гипотетических документов (HyDE)
+const paraphrasesCache = new Map();
 const hydeCache = new Map();
-
-// Кэш переписанных запросов для эмбеддингов
 const rewriteCache = new Map();
+
+// Диск-кэш для дорогих GPT-вызовов (паrafrazы, HyDE, rewrite, synonyms)
+// Ключ: тип + запрос. Позволяет переиспользовать между запусками.
+async function diskCacheGet(type, query) {
+  try {
+    const file = path.join(QUERY_CACHE_DIR, `${type}_${Buffer.from(query).toString('base64url').slice(0, 64)}.json`);
+    const raw = await fs.readFile(file, 'utf-8');
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+async function diskCacheSet(type, query, value) {
+  try {
+    await fs.mkdir(QUERY_CACHE_DIR, { recursive: true });
+    const file = path.join(QUERY_CACHE_DIR, `${type}_${Buffer.from(query).toString('base64url').slice(0, 64)}.json`);
+    await fs.writeFile(file, JSON.stringify(value));
+  } catch {}
+}
 
 export async function search(query, topK = 10, { postsDir } = {}) {
   const allPosts = await loadAllPosts(postsDir);
@@ -398,6 +416,9 @@ async function rewriteQueryForEmbedding(query) {
   const cacheKey = query.toLowerCase().trim();
   if (rewriteCache.has(cacheKey)) return rewriteCache.get(cacheKey);
 
+  const cached = await diskCacheGet('rewrite', cacheKey);
+  if (cached) { rewriteCache.set(cacheKey, cached); return cached; }
+
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
     max_tokens: 60,
@@ -409,12 +430,16 @@ async function rewriteQueryForEmbedding(query) {
 
   const rewritten = response.choices[0].message.content.trim();
   rewriteCache.set(cacheKey, rewritten);
+  await diskCacheSet('rewrite', cacheKey, rewritten);
   return rewritten;
 }
 
 async function generateHypotheticalDocument(query) {
   const cacheKey = query.toLowerCase().trim();
   if (hydeCache.has(cacheKey)) return hydeCache.get(cacheKey);
+
+  const cached = await diskCacheGet('hyde', cacheKey);
+  if (cached) { hydeCache.set(cacheKey, cached); return cached; }
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
@@ -427,7 +452,316 @@ async function generateHypotheticalDocument(query) {
 
   const doc = response.choices[0].message.content;
   hydeCache.set(cacheKey, doc);
+  await diskCacheSet('hyde', cacheKey, doc);
   return doc;
+}
+
+/**
+ * Multi-query BM25 с RRF-фьюжном.
+ *
+ * Проблема одного BM25-запроса: если релевантные посты используют другой словарь
+ * ("кайф", "свобода", "инвестиция"), чем запрос ("яхтенные путешествия", "лучший отдых") —
+ * BM25 их не находит.
+ *
+ * Решение: генерируем 4 паrafразы запроса в стиле русских соцсетей (разные слова,
+ * тот же смысл), прогоняем BM25 по каждой, объединяем 5 ранкингов через RRF.
+ * Каждая паrafраза ловит другое подмножество постов с разными словами.
+ */
+export async function multiQueryRRF(query, topK = 10, { postsDir, k = 60 } = {}) {
+  const allPosts = await loadAllPosts(postsDir);
+  if (allPosts.length === 0) return [];
+
+  const postMap = new Map(allPosts.map(p => [p.id, p]));
+  const engine = buildIndex(allPosts);
+
+  // Генерируем паrafразы + оригинальный запрос
+  const paraphrases = await generateParaphrases(query);
+  const queries = [query, ...paraphrases];
+
+  // BM25 ранкинг для каждого запроса
+  const rankings = [];
+  for (const q of queries) {
+    const results = engine.search(q);
+    rankings.push(new Map(results.map(([id], i) => [id, i])));
+  }
+
+  // RRF fusion по всем ранкингам
+  const allIds = new Set(rankings.flatMap(r => [...r.keys()]));
+  const scored = Array.from(allIds).map(id => {
+    let score = 0;
+    for (const ranks of rankings) {
+      const rank = ranks.has(id) ? ranks.get(id) : allPosts.length;
+      score += 1 / (k + rank);
+    }
+    return { id, score };
+  });
+
+  return scored
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK)
+    .map(({ id, score }) => ({ ...postMap.get(id), score }));
+}
+
+/**
+ * Комбинированный поиск: Multi-query BM25 + Vector + HyDE → RRF.
+ *
+ * Объединяет все сигналы:
+ * - BM25 по оригинальному запросу + 4 парафразам (ловит разный словарь)
+ * - Вектор переписанного запроса (семантика без вопросительной структуры)
+ * - HyDE вектор (устраняет фреймовый разрыв — разные роли, разный стиль)
+ *
+ * Итого 7 сигналов в RRF. Каждый ловит то, что другие пропускают.
+ */
+export async function mqHybridRRF(query, topK = 10, { postsDir, embeddingsDir, k = 60 } = {}) {
+  const allPosts = await loadAllPosts(postsDir);
+  if (allPosts.length === 0) return [];
+
+  const embeddings = await loadAllEmbeddings(embeddingsDir);
+  const postMap = new Map(allPosts.map(p => [p.id, p]));
+
+  // Параллельно: парафразы, переписанный запрос, HyDE документ
+  const [paraphrases, rewritten, hypothetical] = await Promise.all([
+    generateParaphrases(query),
+    rewriteQueryForEmbedding(query),
+    generateHypotheticalDocument(query),
+  ]);
+
+  // Два вектора параллельно
+  const [queryVector, hydeVector] = await Promise.all([
+    generateEmbedding(rewritten),
+    generateEmbedding(hypothetical),
+  ]);
+
+  // BM25 ранкинги: оригинал + 4 парафразы
+  const engine = buildIndex(allPosts);
+  const bm25Queries = [query, ...paraphrases];
+  const bm25Rankings = bm25Queries.map(q => {
+    const results = engine.search(q);
+    return new Map(results.map(([id], i) => [id, i]));
+  });
+
+  // Векторные ранкинги
+  const vecScored = allPosts
+    .filter(p => embeddings.has(p.id))
+    .map(p => ({ id: p.id, score: cosineSimilarity(queryVector, embeddings.get(p.id)) }))
+    .sort((a, b) => b.score - a.score);
+  const vecRanks = new Map(vecScored.map(({ id }, i) => [id, i]));
+
+  const hydeScored = allPosts
+    .filter(p => embeddings.has(p.id))
+    .map(p => ({ id: p.id, score: cosineSimilarity(hydeVector, embeddings.get(p.id)) }))
+    .sort((a, b) => b.score - a.score);
+  const hydeRanks = new Map(hydeScored.map(({ id }, i) => [id, i]));
+
+  // Все ранкинги вместе
+  const allRankings = [...bm25Rankings, vecRanks, hydeRanks];
+
+  // RRF fusion
+  const allIds = new Set(allRankings.flatMap(r => [...r.keys()]));
+  const scored = Array.from(allIds).map(id => {
+    let score = 0;
+    for (const ranks of allRankings) {
+      const rank = ranks.has(id) ? ranks.get(id) : allPosts.length;
+      score += 1 / (k + rank);
+    }
+    return { id, score };
+  });
+
+  return scored
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK)
+    .map(({ id, score }) => ({ ...postMap.get(id), score }));
+}
+
+/**
+ * Поиск всех релевантных постов без фиксированного лимита.
+ *
+ * Вместо "выдай топ-N" просим LLM отфильтровать все релевантные посты из candidateK
+ * кандидатов. Возвращает переменное количество постов — столько, сколько LLM
+ * сочтёт полезными для темы.
+ *
+ * Подходит когда нужно собрать весь материал по теме, а не только топ-15.
+ */
+export async function searchRelevant(query, { postsDir, embeddingsDir, candidateK = 100 } = {}) {
+  const candidates = await mqHybridRRF(query, candidateK, { postsDir, embeddingsDir });
+  if (candidates.length === 0) return [];
+  return await llmFilterAll(query, candidates);
+}
+
+async function llmFilterAll(query, candidates) {
+  const postList = candidates
+    .map((p, i) => {
+      const text = p.textClean || p.ocrText || '';
+      const snippet = text.length > 600
+        ? text.slice(0, 350) + ' … ' + text.slice(-150)
+        : text.slice(0, 500);
+      return `[${i + 1}] ${snippet}`;
+    })
+    .join('\n\n');
+
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    max_tokens: 600,
+    messages: [
+      {
+        role: 'system',
+        content: 'Ты эксперт по яхтингу и контент-маркетингу. Пост считается релевантным если он может дать идеи, факты, истории, эмоции или формулировки для создания контента на заданную тему — даже если прямых совпадений слов нет.',
+      },
+      {
+        role: 'user',
+        content: `Тема контент-плана: "${query}"\n\nВерни номера ВСЕХ постов которые могут быть полезны для этой темы, от наиболее к наименее релевантному. Не ограничивай себя числом — верни все подходящие. Посты совсем не по теме не включай.\n\nТолько номера через запятую, без пояснений.\n\n${postList}`,
+      },
+    ],
+  });
+
+  const text = response.choices[0].message.content;
+  const indices = (text.match(/\d+/g) || [])
+    .map(n => parseInt(n) - 1)
+    .filter((i, pos, arr) => i >= 0 && i < candidates.length && arr.indexOf(i) === pos);
+
+  return indices.map(i => candidates[i]);
+}
+
+/**
+ * Pointwise re-ranking: оценивает каждый кандидат независимо по шкале 1-10,
+ * возвращает посты со скором >= minScore. Нет позиционного bias — каждый пост
+ * оценивается отдельным параллельным запросом.
+ */
+export async function searchWithRerank(query, topK = 10, { postsDir, embeddingsDir, candidateK = 50, minScore = 7 } = {}) {
+  const candidates = await mqHybridRRF(query, candidateK, { postsDir, embeddingsDir });
+  if (candidates.length === 0) return [];
+
+  const scores = await llmRerankPointwise(query, candidates);
+
+  // Посты со скором >= minScore, отсортированные по убыванию скора
+  return scores
+    .filter(({ score }) => score >= minScore)
+    .sort((a, b) => b.score - a.score)
+    .map(({ post }) => post);
+}
+
+async function llmRerankPointwise(query, candidates) {
+  const results = await Promise.all(
+    candidates.map(async (post) => {
+      const text = post.textClean || post.ocrText || '';
+      const snippet = text.length > 600
+        ? text.slice(0, 350) + ' … ' + text.slice(-150)
+        : text.slice(0, 500);
+
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        max_tokens: 5,
+        messages: [
+          {
+            role: 'system',
+            content: 'Ты эксперт по яхтингу и контент-маркетингу. Оцени насколько пост полезен для создания контента на заданную тему. Пост полезен если даёт идеи, факты, истории, эмоции или формулировки — даже без прямых совпадений слов. Ответь одним числом от 1 до 10.',
+          },
+          {
+            role: 'user',
+            content: `Тема: "${query}"\n\nПост:\n${snippet}`,
+          },
+        ],
+      });
+
+      const raw = response.choices[0].message.content.trim();
+      const score = parseInt(raw.match(/\d+/)?.[0] ?? '0');
+      return { post, score: Math.min(10, Math.max(1, score)) };
+    })
+  );
+
+  return results;
+}
+
+/**
+ * Listwise re-ranking (устаревший вариант, оставлен для сравнения).
+ */
+async function searchWithRerankListwise(query, topK = 10, { postsDir, embeddingsDir, candidateK = 50 } = {}) {
+  const candidates = await mqHybridRRF(query, candidateK, { postsDir, embeddingsDir });
+  if (candidates.length === 0) return [];
+
+  const reranked = await llmRerank(query, candidates, topK * 2);
+  const mqHybridTop = candidates.slice(0, topK);
+
+  const k = 60;
+  const rerankRanks = new Map(reranked.map((p, i) => [p.id, i]));
+  const mqRanks = new Map(mqHybridTop.map((p, i) => [p.id, i]));
+
+  const allIds = new Set([...rerankRanks.keys(), ...mqRanks.keys()]);
+  const postMap = new Map(candidates.map(p => [p.id, p]));
+
+  return Array.from(allIds)
+    .map(id => ({
+      id,
+      score: 1 / (k + (rerankRanks.get(id) ?? reranked.length))
+           + 1 / (k + (mqRanks.get(id) ?? topK)),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK)
+    .map(({ id }) => postMap.get(id));
+}
+
+async function llmRerank(query, candidates, topK) {
+  const postList = candidates
+    .map((p, i) => {
+      const text = p.textClean || p.ocrText || '';
+      // Для длинных постов берём начало и конец — тема может раскрываться в любом месте
+      const snippet = text.length > 600
+        ? text.slice(0, 350) + ' … ' + text.slice(-150)
+        : text.slice(0, 500);
+      return `[${i + 1}] ${snippet}`;
+    })
+    .join('\n\n');
+
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    max_tokens: 300,
+    messages: [
+      {
+        role: 'system',
+        content: 'Ты эксперт по яхтингу и контент-маркетингу. Ты умеешь находить смысловые связи между постами и темами, даже если совпадений слов нет. Пост считается релевантным если он может дать идеи, факты, истории, эмоции или формулировки для создания контента на заданную тему.',
+      },
+      {
+        role: 'user',
+        content: `Тема контент-плана: "${query}"\n\nИз постов ниже выбери ${topK} наиболее релевантных. Ищи семантическую связь — пост может описывать тему другими словами, через личный опыт или конкретные детали.\n\nВерни только номера постов через запятую, от наиболее к наименее релевантному. Без пояснений.\n\n${postList}`,
+      },
+    ],
+  });
+
+  const text = response.choices[0].message.content;
+  const indices = (text.match(/\d+/g) || [])
+    .map(n => parseInt(n) - 1)
+    .filter((i, pos, arr) => i >= 0 && i < candidates.length && arr.indexOf(i) === pos);
+
+  const seen = new Set(indices);
+  const rest = candidates.map((_, i) => i).filter(i => !seen.has(i));
+  return [...indices, ...rest].slice(0, topK).map(i => candidates[i]);
+}
+
+async function generateParaphrases(query) {
+  const cacheKey = query.toLowerCase().trim();
+  if (paraphrasesCache.has(cacheKey)) return paraphrasesCache.get(cacheKey);
+
+  const cached = await diskCacheGet('para8', cacheKey);
+  if (cached) { paraphrasesCache.set(cacheKey, cached); return cached; }
+
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    max_tokens: 400,
+    messages: [{
+      role: 'user',
+      content: `Перефразируй этот запрос 8 разными способами, используя максимально разные слова и выражения: разговорный стиль соцсетей, нарративные ключевые слова, синонимы темы. Каждая парафраза на новой строке, без нумерации и пояснений. Запрос: "${query}"`,
+    }],
+  });
+
+  const paraphrases = response.choices[0].message.content
+    .split('\n')
+    .map(s => s.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+
+  paraphrasesCache.set(cacheKey, paraphrases);
+  await diskCacheSet('para8', cacheKey, paraphrases);
+  return paraphrases;
 }
 
 async function loadAllPosts(postsDir = DEFAULT_POSTS_DIR) {
