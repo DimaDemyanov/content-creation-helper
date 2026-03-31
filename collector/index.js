@@ -76,7 +76,7 @@ export async function removeChannel(source, username) {
   await fs.rm(embeddingsFile, { force: true });
 }
 
-export async function collect(channels = null) {
+export async function collect(channels = null, { fullSync = false } = {}) {
   const config = JSON.parse(await fs.readFile(CONFIG_FILE, 'utf-8'));
   const state = await readState();
 
@@ -88,14 +88,15 @@ export async function collect(channels = null) {
     ? config.instagram.accounts.filter(a => channels.includes(`ig_${a}`) || channels.includes(a))
     : config.instagram.accounts;
 
-  console.log(`[Collector] Старт сбора. Каналы: ${[...tgChannels, ...igAccounts.map(a => `ig_${a}`)].join(', ')}`);
+  console.log(`[Collector] Старт сбора${fullSync ? ' (полный пересбор)' : ''}. Каналы: ${[...tgChannels, ...igAccounts.map(a => `ig_${a}`)].join(', ')}`);
 
   let totalCollected = 0;
 
   for (const channel of tgChannels) {
     const channelState = state[channel] || { lastCollectedAt: null, allPostsDownloaded: false, totalPosts: 0 };
+    const effectiveState = fullSync ? { ...channelState, lastCollectedAt: null } : channelState;
     try {
-      const result = await collectTelegramChannel(channel, channelState);
+      const result = await collectTelegramChannel(channel, effectiveState);
       state[channel] = { source: 'telegram', ...result };
       await saveState(state);
       totalCollected += result.collected;
@@ -135,9 +136,10 @@ export async function collect(channels = null) {
 }
 
 const isOnce = process.argv.includes('--once');
+const isFullSync = process.argv.includes('--full');
 
-if (isOnce) {
-  collect().catch(console.error);
+if (isOnce || isFullSync) {
+  collect(null, { fullSync: isFullSync }).catch(console.error);
 } else {
   const config = JSON.parse(await fs.readFile(CONFIG_FILE, 'utf-8'));
   const schedule = config.collect?.schedule || '0 9 * * *';

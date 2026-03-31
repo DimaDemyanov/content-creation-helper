@@ -5,6 +5,7 @@
   "scripts": {
     "start": "node index.js",
     "collect": "node collector/index.js --once",
+    "collect:full": "node collector/index.js --full",
     "bot": "node bot/index.js",
     "test": "vitest run --exclude tests/search.integration.test.js",
     "test:integration": "vitest run tests/search.integration.test.js",

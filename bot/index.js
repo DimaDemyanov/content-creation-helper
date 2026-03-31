@@ -21,7 +21,7 @@ bot.onText(/\/start/, (msg) => {
     '/search <запрос> — найти посты по теме',
     '/generate <запрос> — найти посты и сгенерировать похожий текст',
     '/collect — запустить сбор новых постов',
-    '/status — статистика по каналам',
+    '/stats — статистика по каналам',
     '/addchannel telegram <username> — добавить Telegram-канал',
     '/addchannel instagram <username> — добавить Instagram-аккаунт',
     '/removechannel telegram <username> — удалить канал и все его посты',
@@ -113,7 +113,7 @@ bot.onText(/\/collect/, async (msg) => {
   }
 });
 
-bot.onText(/\/status/, async (msg) => {
+bot.onText(/\/stats/, async (msg) => {
   const chatId = msg.chat.id;
 
   try {
