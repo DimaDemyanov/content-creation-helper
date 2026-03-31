@@ -16,7 +16,7 @@ console.log('[Bot] Запущен');
 
 bot.onText(/\/start/, (msg) => {
   bot.sendMessage(msg.chat.id, [
-    'Yacht Content Aggregator',
+    'Content Creation Helper',
     '',
     '/search <запрос> — найти посты по теме',
     '/generate <запрос> — найти посты и сгенерировать похожий текст',
