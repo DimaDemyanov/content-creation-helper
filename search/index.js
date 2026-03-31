@@ -75,6 +75,14 @@ const hydeCache = new Map();
 const rewriteCache = new Map();
 
 // Основные режимы поиска для продукта:
+// - fast: быстрый и дешёвый BM25
+// - balanced: лучший компромисс по качеству (mqHybridRRF)
+// - highRecall: алиас balanced для обратной совместимости
+export const PRIMARY_SEARCH_METHODS = Object.freeze({
+  fast: 'search',
+  balanced: 'mqHybridRRF',
+  highRecall: 'mqHybridRRF',
+});
 
 const MQ_HYBRID_DEFAULT_WEIGHTS = Object.freeze({
   bm25Raw: 1.05,

@@ -37,7 +37,7 @@ const REQUIRED_IDS = new Set([
   'LyubimovaEvgeniya_2122', 'LyubimovaEvgeniya_1510', 'LyubimovaEvgeniya_1656',
   'LyubimovaEvgeniya_386', 'LyubimovaEvgeniya_732', 'LyubimovaEvgeniya_2118',
   'LyubimovaEvgeniya_1865', 'LyubimovaEvgeniya_2021',
-  'ig_anton_timk_DGibmz6v026', 'ig_anton_timk_DTNpIZXiCbG',
+  'ig_anton_timk_DGibmz6v026', 'ig_anton_timk_DTNpIZXiCbG', 'ig_anton_timk_DULcTZVCGv3',
   'ig_anton_timk_DSK3_lRCGYv', 'ig_anton_timk_C8cKk1bC2to', 'ig_anton_timk_DWY0COXF93M', // T1
 
   'ig_anton_timk_DUz0RkgDy6J', 'ig_anton_timk_DRUspFLj3gJ',  // T4 первая яхта

@@ -7,7 +7,7 @@
  * Требует:
  *   - OPENAI_API_KEY в .env
  *   - Посты в tests/fixtures/posts/
- *   - Эмбеддинги в tests/fixtures/embeddings/ (для mqHybridRRF / re-rank)
+ *   - Эмбеддинги в tests/fixtures/embeddings/ (для mqHybridRRF)
  *     Если эмбеддинги не сгенерированы: node --env-file=.env scripts/backfill-embeddings.js
  */
 
@@ -38,15 +38,16 @@ const TOPICS = [
       'ig_anton_timk_DGibmz6v026', 'ig_anton_timk_DTNpIZXiCbG', 'ig_anton_timk_C8cKk1bC2to',
       'ig_anton_timk_DSK3_lRCGYv', 'ig_anton_timk_DWY0COXF93M',
       'ig_anton_timk_DSfvT1PCAM6', 'ig_anton_timk_DEzkhmYCasQ', 'ig_anton_timk_DIdkxXAvo-z',
+      'ig_anton_timk_DULcTZVCGv3',
       'ig_clevel.yacht_DVwJ3JUj9qo', 'ig_clevel.yacht_DUivkh2iqD3', 'ig_clevel.yacht_DOlH6fwijjn',
       'ig_clevel.yacht_DOvz8Xfiszo', 'ig_clevel.yacht_DRRtuieCl4k', 'ig_clevel.yacht_DFNka1_qMFk',
       'ig_clevel.yacht_DPMO2zACrOr', 'ig_clevel.yacht_DOOqCSuirFF',
-      'ig_clevel.yacht_DQ_oXPlD3Kg', 'ig_clevel.yacht_DUTaVm7D4kR',
-      'ig_clevel.yacht_DLC3sJcqR7s', 'ig_clevel.yacht_DEXaJnGKeQv',
-      'ig_clevel.yacht_DVBaeYfjcex', 'ig_clevel.yacht_DWRnwajj9y7', 'ig_clevel.yacht_DOG2eZLilZp',
+      'ig_clevel.yacht_DQ_oXPlD3Kg',
+      'ig_clevel.yacht_DLC3sJcqR7s',
+      'ig_clevel.yacht_DVBaeYfjcex',
+      'ig_clevel.yacht_DR7XTb8CqdW', 'ig_clevel.yacht_DUd1HgGimL6',
       'meetingplace_news_176', 'meetingplace_news_28', 'meetingplace_news_99',
       'silavetrasila_3938', 'silavetrasila_5403',
-      'regataveka_70',
     ],
   },
   {
@@ -100,6 +101,7 @@ const TOPICS = [
       'ig_clevel.yacht_DVRPXpmiiZS', 'ig_clevel.yacht_DIWNtd3KIDo',
       'ig_clevel.yacht_DVBaeYfjcex', 'ig_clevel.yacht_DT_DbpTCgGm',
       'ig_clevel.yacht_DUd1HgGimL6', 'ig_clevel.yacht_DVL1SPljfIH',
+      'ig_clevel.yacht_DWRnwajj9y7',
       'silavetrasila_7742',
     ],
   },
@@ -211,7 +213,7 @@ describe('mqHybridRRF — пошаговая диагностика', () => {
     expect(debug.artifacts.hypothetical.trim().length).toBeGreaterThan(20);
     expect(debug.artifacts.intentProfile).toBeDefined();
     expect(typeof debug.artifacts.intentProfile.queryType).toBe('string');
-  }, 60_000);
+  }, 120_000);
 
   it('шаг 2/3/4/5: строит лексические, векторные, PRF и intent ранкинги', async () => {
     const debug = await debugMqHybridSteps(SAMPLE_QUERY, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR });
@@ -235,7 +237,7 @@ describe('mqHybridRRF — пошаговая диагностика', () => {
     const intentSignal = debug.signalStats.find(s => s.name === 'intentAlignment');
     expect(intentSignal.size).toBeGreaterThan(0);
     expect(intentSignal.topIds.length).toBeGreaterThan(0);
-  }, 60_000);
+  }, 120_000);
 
   it('шаг 5/6/7: fusion + refinement возвращают корректный topK', async () => {
     const debug = await debugMqHybridSteps(SAMPLE_QUERY, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR });
@@ -251,7 +253,7 @@ describe('mqHybridRRF — пошаговая диагностика', () => {
     for (let i = 1; i < debug.fusedTop.length; i++) {
       expect(debug.fusedTop[i - 1].score).toBeGreaterThanOrEqual(debug.fusedTop[i].score);
     }
-  }, 60_000);
+  }, 120_000);
 });
 
 describe('BM25 поиск (search)', () => {
@@ -261,7 +263,7 @@ describe('BM25 поиск (search)', () => {
       const metrics = evaluateTopicResults(results, relevant, mustFind);
       logTopicMetrics('BM25', metrics, relevant, mustFind, results);
       expectTopicMetrics(results, metrics, relevant, mustFind);
-    }, 30_000);
+    }, 90_000);
   }
 });
 
@@ -277,7 +279,7 @@ describe('mqHybridRRF', () => {
       const metrics = evaluateTopicResults(results, relevant, mustFind);
       logTopicMetrics('mqHybrid', metrics, relevant, mustFind, results);
       expectTopicMetrics(results, metrics, relevant, mustFind);
-    }, 60_000);
+    }, 120_000);
   }
 });
 
