@@ -52,6 +52,10 @@ const REQUIRED_IDS = new Set([
   'regataveka_74',                                           // T6 регата + T8 бухты
 
   'LyubimovaEvgeniya_1987',                                  // T9 мель
+
+  'silavetrasila_7985',                                      // T10 незнакомцы → команда
+  'ig_clevel.yacht_DHdhW5DKmOZ',                             // T10 незнакомцы → команда
+  'ig_clevel.yacht_DVwJ3JUj9qo',                             // T10 незнакомцы → команда
 ]);
 
 await fs.mkdir(FIXTURES_DIR, { recursive: true });

@@ -4,7 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import TelegramBot from 'node-telegram-bot-api';
 import OpenAI from 'openai';
-import { search, getStats } from '../search/index.js';
+import { mqHybridRRF, search } from '../search/index.js';
 import { collect, addChannel, removeChannel, readState } from '../collector/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -37,7 +37,7 @@ bot.onText(/\/search (.+)/, async (msg, match) => {
   await bot.sendMessage(chatId, `Ищу: "${query}"...`);
 
   try {
-    const results = await search(query);
+    const results = await mqHybridRRF(query, 10);
 
     if (results.length === 0) {
       return bot.sendMessage(chatId, 'Ничего не найдено.');
@@ -67,7 +67,7 @@ bot.onText(/\/generate (.+)/, async (msg, match) => {
   await bot.sendMessage(chatId, `Ищу посты по теме "${query}" и генерирую текст...`);
 
   try {
-    const results = await search(query, 5);
+    const results = await mqHybridRRF(query, 5);
 
     if (results.length === 0) {
       return bot.sendMessage(chatId, 'Не найдено постов для генерации.');

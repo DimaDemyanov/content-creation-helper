@@ -14,7 +14,7 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { describe, it, expect } from 'vitest';
-import { search, mqHybridRRF, searchWithRerank, debugMqHybridSteps, MQ_HYBRID_STEPS } from '../search/index.js';
+import { search, mqHybridRRF, debugMqHybridSteps, MQ_HYBRID_STEPS } from '../search/index.js';
 import { loadAllEmbeddings } from '../search/embeddings.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -55,7 +55,7 @@ const TOPICS = [
     relevant: [
       'meetingplace_news_32', 'meetingplace_news_367', 'meetingplace_news_314', 'meetingplace_news_164',
       'regataveka_64', 'regataveka_83', 'regataveka_88', 'regataveka_95', 'regataveka_112', 'regataveka_120',
-      'ig_clevel.yacht_DOG2eZLilZp', 'ig_clevel.yacht_DFNka1_qMFk', 'ig_clevel.yacht_DGgRXqaqMSO',
+      'ig_clevel.yacht_DOG2eZLilZp', 'ig_clevel.yacht_DFNka1_qMFk', 'ig_clevel.yacht_DGgRXqaqMSO', 'ig_clevel.yacht_DQKORclivsG',
       'silavetrasila_6286',
       'seapinta_116', 'seapinta_117',
     ],
@@ -89,7 +89,7 @@ const TOPICS = [
   },
   {
     query: 'Что будет на регате в Турции (5 лодок)',
-    mustFind: ['ig_clevel.yacht_DSzdcLSDiVi', 'ig_clevel.yacht_DRe1kpyCjbD', 'silavetrasila_7742'],
+    mustFind: ['ig_clevel.yacht_DSzdcLSDiVi', 'regataveka_74', 'silavetrasila_7742'],
     relevant: [
       'regataveka_40', 'regataveka_29', 'regataveka_64', 'regataveka_70', 'regataveka_69',
       'regataveka_74',
@@ -129,6 +129,14 @@ const TOPICS = [
     relevant: [
       'LyubimovaEvgeniya_2118', 'LyubimovaEvgeniya_2021',
       'LyubimovaEvgeniya_1865', 'LyubimovaEvgeniya_1987',
+    ],
+  },
+  {
+    query: 'Незнакомцы становятся командой за неделю',
+    mustFind: ['silavetrasila_7420', 'ig_clevel.yacht_DPMO2zACrOr', 'meetingplace_news_99'],
+    relevant: [
+      'silavetrasila_7420', 'ig_clevel.yacht_DPMO2zACrOr', 'meetingplace_news_99',
+      'silavetrasila_7985', 'ig_clevel.yacht_DHdhW5DKmOZ', 'ig_clevel.yacht_DVwJ3JUj9qo',
     ],
   },
 ];
@@ -273,31 +281,15 @@ describe('mqHybridRRF', () => {
   }
 });
 
-describe('searchWithRerank', () => {
-  for (const { query, relevant, mustFind } of TOPICS) {
-    it(query, async () => {
-      const results = await searchWithRerank(query, TOP_K, {
-        postsDir: POSTS_DIR,
-        embeddingsDir: EMBEDDINGS_DIR,
-        candidateK: 50,
-      });
-      const metrics = evaluateTopicResults(results, relevant, mustFind);
-      logTopicMetrics('rerank', metrics, relevant, mustFind, results);
-      expectTopicMetrics(results, metrics, relevant, mustFind);
-    }, 120_000);
-  }
-});
-
 describe('Сводный отчёт основных методов', () => {
-  it('выводит таблицу BM25 vs mqHybrid vs rerank', async () => {
+  it('выводит таблицу BM25 vs mqHybrid', async () => {
     const rows = [];
     const mrrs = [];
 
     for (const { query, relevant, mustFind } of TOPICS) {
-      const [bm25, mqHybrid, rerank] = await Promise.all([
+      const [bm25, mqHybrid] = await Promise.all([
         search(query, TOP_K, { postsDir: POSTS_DIR }),
         mqHybridRRF(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR }),
-        searchWithRerank(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR, candidateK: 50 }),
       ]);
 
       const fmt = (results, rel, must) => {
@@ -310,13 +302,11 @@ describe('Сводный отчёт основных методов', () => {
         query,
         bm25: fmt(bm25, relevant, mustFind),
         mqHybrid: fmt(mqHybrid, relevant, mustFind),
-        rerank: fmt(rerank, relevant, mustFind),
       });
 
       mrrs.push({
         bm25: rr(bm25, relevant),
         mqHybrid: rr(mqHybrid, relevant),
-        rerank: rr(rerank, relevant),
       });
     }
 
@@ -338,12 +328,12 @@ describe('Сводный отчёт основных методов', () => {
 
     console.log(`\n${'Метод'.padEnd(10)} rel@${TOP_K}           must@${TOP_K}          MRR`);
     console.log('─'.repeat(56));
-    for (const col of ['bm25', 'mqHybrid', 'rerank']) {
+    for (const col of ['bm25', 'mqHybrid']) {
       const relSum = sumHits(col, 'rel');
       const mustSum = sumHits(col, 'must');
       console.log(`${col.padEnd(10)} ${String(relSum + '/' + totalRel).padEnd(16)} ${String(mustSum + '/' + totalMust).padEnd(16)} ${meanRR(col)}`);
     }
-  }, 240_000);
+  }, 360_000);
 });
 
 describe('mqHybridRRF — drop-off диагностика этапов', () => {

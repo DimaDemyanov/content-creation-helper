@@ -1,6 +1,6 @@
 /**
- * Проверка ground truth: показывает посты которые выдаёт rerank,
- * но которых нет в relevant-списке. Помогает найти незамеченные релевантные посты.
+ * Проверка ground truth: показывает посты из mqHybridRRF,
+ * которых нет в relevant-списке. Помогает найти незамеченные релевантные посты.
  *
  * Запуск:
  *   node --env-file=.env scripts/verify-ground-truth.js
@@ -8,7 +8,7 @@
 
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { searchWithRerank } from '../search/index.js';
+import { mqHybridRRF } from '../search/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const POSTS_DIR = path.join(__dirname, '../tests/fixtures/posts');
@@ -116,7 +116,7 @@ const TOP_K = 15;
 
 for (const { query, relevant, mustFind } of TOPICS) {
   const relevantSet = new Set(relevant);
-  const results = await searchWithRerank(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR });
+  const results = await mqHybridRRF(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR });
   const falsePositives = results.filter(p => !relevantSet.has(p.id));
 
   if (falsePositives.length === 0) {
