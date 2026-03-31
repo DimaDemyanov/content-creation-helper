@@ -3,7 +3,7 @@ import cron from 'node-cron';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { collectTelegramChannel, disconnectTelegram } from './telegram.js';
+import { collectTelegramChannel, disconnectTelegram, runPendingOcr } from './telegram.js';
 import { collectInstagramAccount } from './instagram.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -106,6 +106,15 @@ export async function collect(channels = null) {
   }
 
   await disconnectTelegram();
+
+  // OCR запускается после дисконнекта — Telegram клиент больше не нужен
+  for (const channel of tgChannels) {
+    try {
+      await runPendingOcr(channel);
+    } catch (err) {
+      console.error(`[OCR] Ошибка @${channel}:`, err.message);
+    }
+  }
 
   for (const account of igAccounts) {
     const key = `ig_${account}`;

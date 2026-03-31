@@ -67,11 +67,34 @@ export async function collectTelegramChannel(channel, channelState, onBatchSaved
   };
 }
 
+// OCR для постов с ocrPending=true. Вызывается ПОСЛЕ disconnectTelegram().
+export async function runPendingOcr(channel) {
+  const posts = await loadPosts(channel);
+  const pending = posts.filter(p => p.ocrPending);
+  if (pending.length === 0) return 0;
+
+  console.log(`[OCR] @${channel}: обрабатываю ${pending.length} изображений...`);
+  let done = 0;
+
+  for (const post of pending) {
+    try {
+      const ocrText = await extractTextFromImage(post.ocrPending);
+      post.ocrText = ocrText;
+    } catch (err) {
+      console.error(`[OCR] Ошибка ${post.id}:`, err.message);
+    }
+    delete post.ocrPending;
+    done++;
+  }
+
+  await fs.writeFile(path.join(POSTS_DIR, `${channel}.json`), JSON.stringify(posts, null, 2));
+  console.log(`[OCR] @${channel}: готово (${done}/${pending.length})`);
+  return done;
+}
+
 async function getChannelInfo(tgClient, entity) {
   try {
-    // Последнее сообщение
     const [last] = await tgClient.getMessages(entity, { limit: 1 });
-    // Самое первое сообщение (offsetId=1 возвращает с начала в обратном порядке)
     const [first] = await tgClient.getMessages(entity, { limit: 1, reverse: true });
 
     return {
@@ -85,7 +108,6 @@ async function getChannelInfo(tgClient, entity) {
 }
 
 async function fetchAndSaveChannelPosts(tgClient, entity, channel, since, onBatchSaved) {
-
   let offsetId = 0;
   let hasMore = true;
   let totalCollected = 0;
@@ -127,11 +149,13 @@ async function fetchAndSaveChannelPosts(tgClient, entity, channel, since, onBatc
   return { totalCollected, allPostsDownloaded };
 }
 
+// Скачивает медиа (требует активного клиента), OCR откладывает.
+// ocrPending содержит base64 dataUrl — будет обработан в runPendingOcr().
 async function buildPost(msg, channel) {
   const text = msg.text || '';
   const textClean = cleanText(text);
 
-  let ocrText = null;
+  let ocrPending = undefined;
   let mediaInfo = null;
 
   if (msg.media?.photo) {
@@ -139,19 +163,16 @@ async function buildPost(msg, channel) {
     try {
       const buffer = await msg.downloadMedia();
       if (buffer) {
-        // Пропускаем слишком большие изображения (> 5 MB в base64 ~ 3.75 MB raw)
         if (buffer.length > 3_900_000) {
           console.log(`[OCR] Пропускаем ${channel}_${msg.id}: слишком большой файл (${Math.round(buffer.length / 1024)}KB)`);
         } else {
-          const base64 = buffer.toString('base64');
-          const dataUrl = `data:image/jpeg;base64,${base64}`;
-          ocrText = await extractTextFromImage(dataUrl);
+          ocrPending = `data:image/jpeg;base64,${buffer.toString('base64')}`;
         }
       } else {
         console.log(`[OCR] ${channel}_${msg.id}: downloadMedia вернул null`);
       }
     } catch (err) {
-      console.error(`[OCR] Ошибка ${channel}_${msg.id}:`, err.message);
+      console.error(`[OCR] Ошибка скачивания ${channel}_${msg.id}:`, err.message);
     }
   }
 
@@ -163,7 +184,8 @@ async function buildPost(msg, channel) {
     date: new Date(msg.date * 1000).toISOString(),
     text,
     textClean,
-    ocrText,
+    ocrText: null,
+    ...(ocrPending ? { ocrPending } : {}),
     media: mediaInfo,
     stats: {
       views: msg.views || 0,
