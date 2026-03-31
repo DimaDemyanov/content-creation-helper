@@ -3,15 +3,14 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import TelegramBot from 'node-telegram-bot-api';
-import OpenAI from 'openai';
 import { mqHybridRRF, search } from '../search/index.js';
+import { llmClient as openai, LLM_MODEL } from '../llm.js';
 import { collect, addChannel, removeChannel, readState } from '../collector/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const POSTS_DIR = path.join(__dirname, '../data/posts');
 
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 console.log('[Bot] Запущен');
 
@@ -78,7 +77,7 @@ bot.onText(/\/generate (.+)/, async (msg, match) => {
       .join('\n\n---\n\n');
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: LLM_MODEL,
       max_tokens: 1000,
       messages: [
         {

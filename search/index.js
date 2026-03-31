@@ -3,15 +3,13 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import winkBM25 from 'wink-bm25-text-search';
 import winkNLP from 'wink-nlp-utils';
-import OpenAI from 'openai';
 import { StemmerRu, StopwordsRu } from '@nlpjs/lang-ru';
 import { generateEmbedding, loadAllEmbeddings, loadAllChunkEmbeddings, cosineSimilarity } from './embeddings.js';
+import { llmClient as openai, LLM_MODEL } from '../llm.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_POSTS_DIR = path.join(__dirname, '../data/posts');
 const QUERY_CACHE_DIR = path.join(__dirname, '../.cache/queries');
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -167,7 +165,7 @@ async function rewriteQueryForEmbedding(query) {
   if (cached) { rewriteCache.set(cacheKey, cached); return cached; }
 
   const response = await withRetry(() => openai.chat.completions.create({
-    model: 'gpt-4o-mini',
+    model: LLM_MODEL,
     temperature: 0,
     max_tokens: 60,
     messages: [{
@@ -190,7 +188,7 @@ async function generateHypotheticalDocument(query) {
   if (cached) { hydeCache.set(cacheKey, cached); return cached; }
 
   const response = await withRetry(() => openai.chat.completions.create({
-    model: 'gpt-4o-mini',
+    model: LLM_MODEL,
     temperature: 0,
     max_tokens: 200,
     messages: [{
@@ -835,7 +833,7 @@ async function llmFilterAll(query, candidates) {
     .join('\n\n');
 
   const response = await withRetry(() => openai.chat.completions.create({
-    model: 'gpt-4o-mini',
+    model: LLM_MODEL,
     temperature: 0,
     max_tokens: 600,
     messages: [
@@ -997,7 +995,7 @@ async function llmRerank(query, candidates, topK, { mode = 'strict' } = {}) {
     .join('\n\n');
 
   const response = await withRetry(() => openai.chat.completions.create({
-    model: 'gpt-4o-mini',
+    model: LLM_MODEL,
     temperature: 0,
     max_tokens: 300,
     messages: [
@@ -1033,7 +1031,7 @@ async function generateParaphrases(query, count = 8) {
   if (cached) { paraphrasesCache.set(cacheKey, cached); return cached; }
 
   const response = await withRetry(() => openai.chat.completions.create({
-    model: 'gpt-4o-mini',
+    model: LLM_MODEL,
     temperature: 0,
     max_tokens: 400,
     messages: [{
@@ -1099,7 +1097,7 @@ async function expandQuery(query) {
 
   try {
     const response = await withRetry(() => openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: LLM_MODEL,
       temperature: 0,
       max_tokens: 100,
       messages: [
