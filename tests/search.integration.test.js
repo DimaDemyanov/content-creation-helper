@@ -6,21 +6,20 @@
  *
  * Требует:
  *   - OPENAI_API_KEY в .env
- *   - Данные в data/posts/
- *   - Эмбеддинги в data/embeddings/ (для vectorSearch и hybridSearch)
+ *   - Посты в tests/fixtures/posts/
+ *   - Эмбеддинги в tests/fixtures/embeddings/ (для mqHybridRRF / re-rank)
  *     Если эмбеддинги не сгенерированы: node --env-file=.env scripts/backfill-embeddings.js
  */
 
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { describe, it, expect } from 'vitest';
-import { search, vectorSearch, hybridSearch, vectorSearchChunked, hybridSearchChunked, vectorSearchHyDE, hybridSearchHyDE, hybridSearchFull, hybridSearchRRF, multiQueryRRF, mqHybridRRF, searchWithRerank } from '../search/index.js';
-import { loadAllEmbeddings, loadAllChunkEmbeddings } from '../search/embeddings.js';
+import { search, mqHybridRRF, searchWithRerank, debugMqHybridSteps, MQ_HYBRID_STEPS } from '../search/index.js';
+import { loadAllEmbeddings } from '../search/embeddings.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const POSTS_DIR = path.join(__dirname, 'fixtures/posts');
 const EMBEDDINGS_DIR = path.join(__dirname, 'fixtures/embeddings');
-const CHUNK_EMBEDDINGS_DIR = path.join(__dirname, 'fixtures/chunk-embeddings');
 
 // Ground truth по каждой теме.
 //
@@ -142,6 +141,11 @@ function countHits(results, list) {
   return list.filter(id => ids.has(id)).length;
 }
 
+function countHitsByIds(ids, list) {
+  const set = new Set(ids);
+  return list.filter((id) => set.has(id)).length;
+}
+
 function firstHitPosition(results, relevant) {
   return results.findIndex(r => relevant.includes(r.id)) + 1; // 1-based, 0 если не найдено
 }
@@ -174,7 +178,73 @@ function expectTopicMetrics(results, metrics, relevant, mustFind) {
   expect(metrics.mustFound).toBeLessThanOrEqual(mustFind.length);
 }
 
-// --- BM25 ---
+const SAMPLE_QUERY = 'Как выйти замуж на яхте';
+
+describe('mqHybridRRF — пошаговая диагностика', () => {
+  it('декларирует ожидаемые шаги pipeline', () => {
+    expect(MQ_HYBRID_STEPS).toEqual([
+      'prepare_query_signals',
+      'build_lexical_rankings',
+      'build_vector_rankings',
+      'expand_with_pseudo_relevance_feedback',
+      'build_intent_alignment_ranking',
+      'fuse_rankings_with_weighted_rrf',
+      'llm_relevance_refinement',
+      'return_top_k',
+    ]);
+  });
+
+  it('шаг 1: готовит сигналы запроса (expand/paraphrase/rewrite/hyde)', async () => {
+    const debug = await debugMqHybridSteps(SAMPLE_QUERY, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR });
+    expect(debug.artifacts.expandedTerms.length).toBeGreaterThan(0);
+    expect(debug.artifacts.paraphrases.length).toBeGreaterThan(0);
+    expect(debug.artifacts.paraphrases.length).toBeLessThanOrEqual(4);
+    expect(debug.artifacts.rewritten.trim().length).toBeGreaterThan(0);
+    expect(debug.artifacts.hypothetical.trim().length).toBeGreaterThan(20);
+    expect(debug.artifacts.intentProfile).toBeDefined();
+    expect(typeof debug.artifacts.intentProfile.queryType).toBe('string');
+  }, 60_000);
+
+  it('шаг 2/3/4/5: строит лексические, векторные, PRF и intent ранкинги', async () => {
+    const debug = await debugMqHybridSteps(SAMPLE_QUERY, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR });
+    const names = debug.signalStats.map(s => s.name);
+    expect(names).toContain('bm25Raw');
+    expect(names).toContain('bm25Expanded');
+    expect(names).toContain('bm25Rewrite');
+    expect(names).toContain('vecRewrite');
+    expect(names).toContain('vecHyDE');
+    expect(names).toContain('vecRaw');
+    expect(names).toContain('vecRewriteChunk');
+    expect(names).toContain('vecHyDEChunk');
+    expect(names.some((n) => ['bm25Feedback', 'vecCentroid', 'channelPrior'].includes(n))).toBe(true);
+    expect(names).toContain('intentAlignment');
+    expect(names).toContain('directMatch');
+
+    const bm25Signal = debug.signalStats.find(s => s.name === 'bm25Expanded');
+    expect(bm25Signal.size).toBeGreaterThan(0);
+    expect(bm25Signal.topIds.length).toBeGreaterThan(0);
+
+    const intentSignal = debug.signalStats.find(s => s.name === 'intentAlignment');
+    expect(intentSignal.size).toBeGreaterThan(0);
+    expect(intentSignal.topIds.length).toBeGreaterThan(0);
+  }, 60_000);
+
+  it('шаг 5/6/7: fusion + refinement возвращают корректный topK', async () => {
+    const debug = await debugMqHybridSteps(SAMPLE_QUERY, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR });
+    expect(debug.fusedTop.length).toBeGreaterThan(0);
+    expect(debug.fusedTop.length).toBeLessThanOrEqual(TOP_K);
+    expect(debug.refinedTop.length).toBeGreaterThan(0);
+    expect(debug.refinedTop.length).toBeLessThanOrEqual(TOP_K);
+
+    const ids = debug.fusedTop.map(x => x.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    const refinedIds = debug.refinedTop.map(x => x.id);
+    expect(new Set(refinedIds).size).toBe(refinedIds.length);
+    for (let i = 1; i < debug.fusedTop.length; i++) {
+      expect(debug.fusedTop[i - 1].score).toBeGreaterThanOrEqual(debug.fusedTop[i].score);
+    }
+  }, 60_000);
+});
 
 describe('BM25 поиск (search)', () => {
   for (const { query, relevant, mustFind } of TOPICS) {
@@ -187,9 +257,7 @@ describe('BM25 поиск (search)', () => {
   }
 });
 
-// --- Vector ---
-
-describe('Векторный поиск (vectorSearch)', () => {
+describe('mqHybridRRF', () => {
   it('эмбеддинги загружены', async () => {
     const embeddings = await loadAllEmbeddings(EMBEDDINGS_DIR);
     expect(embeddings.size).toBeGreaterThan(0);
@@ -197,148 +265,114 @@ describe('Векторный поиск (vectorSearch)', () => {
 
   for (const { query, relevant, mustFind } of TOPICS) {
     it(query, async () => {
-      const results = await vectorSearch(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR });
+      const results = await mqHybridRRF(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR });
       const metrics = evaluateTopicResults(results, relevant, mustFind);
-      logTopicMetrics('Vector', metrics, relevant, mustFind, results);
+      logTopicMetrics('mqHybrid', metrics, relevant, mustFind, results);
       expectTopicMetrics(results, metrics, relevant, mustFind);
-    }, 30_000);
+    }, 60_000);
   }
 });
 
-// --- Hybrid ---
-
-describe('Гибридный поиск (hybridSearch)', () => {
+describe('searchWithRerank', () => {
   for (const { query, relevant, mustFind } of TOPICS) {
     it(query, async () => {
-      const results = await hybridSearch(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR });
+      const results = await searchWithRerank(query, TOP_K, {
+        postsDir: POSTS_DIR,
+        embeddingsDir: EMBEDDINGS_DIR,
+        candidateK: 50,
+      });
       const metrics = evaluateTopicResults(results, relevant, mustFind);
-      logTopicMetrics('Hybrid', metrics, relevant, mustFind, results);
+      logTopicMetrics('rerank', metrics, relevant, mustFind, results);
       expectTopicMetrics(results, metrics, relevant, mustFind);
-    }, 30_000);
+    }, 120_000);
   }
 });
 
-// --- Vector Chunked ---
-
-describe('Векторный поиск по чанкам (vectorSearchChunked)', () => {
-  it('чанк-эмбеддинги загружены', async () => {
-    const chunkMap = await loadAllChunkEmbeddings(CHUNK_EMBEDDINGS_DIR);
-    expect(chunkMap.size).toBeGreaterThan(0);
-  });
-
-  for (const { query, relevant, mustFind } of TOPICS) {
-    it(query, async () => {
-      const results = await vectorSearchChunked(query, TOP_K, { postsDir: POSTS_DIR, chunkEmbeddingsDir: CHUNK_EMBEDDINGS_DIR });
-      const metrics = evaluateTopicResults(results, relevant, mustFind);
-      logTopicMetrics('VectorChunked', metrics, relevant, mustFind, results);
-      expectTopicMetrics(results, metrics, relevant, mustFind);
-    }, 30_000);
-  }
-});
-
-// --- Hybrid Chunked ---
-
-describe('Гибридный поиск по чанкам (hybridSearchChunked)', () => {
-  for (const { query, relevant, mustFind } of TOPICS) {
-    it(query, async () => {
-      const results = await hybridSearchChunked(query, TOP_K, { postsDir: POSTS_DIR, chunkEmbeddingsDir: CHUNK_EMBEDDINGS_DIR });
-      const metrics = evaluateTopicResults(results, relevant, mustFind);
-      logTopicMetrics('HybridChunked', metrics, relevant, mustFind, results);
-      expectTopicMetrics(results, metrics, relevant, mustFind);
-    }, 30_000);
-  }
-});
-
-// --- HyDE ---
-
-describe('Векторный поиск HyDE (vectorSearchHyDE)', () => {
-  for (const { query, relevant, mustFind } of TOPICS) {
-    it(query, async () => {
-      const results = await vectorSearchHyDE(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR });
-      const metrics = evaluateTopicResults(results, relevant, mustFind);
-      logTopicMetrics('HyDE', metrics, relevant, mustFind, results);
-      expectTopicMetrics(results, metrics, relevant, mustFind);
-    }, 30_000);
-  }
-});
-
-describe('Гибридный поиск HyDE (hybridSearchHyDE)', () => {
-  for (const { query, relevant, mustFind } of TOPICS) {
-    it(query, async () => {
-      const results = await hybridSearchHyDE(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR });
-      const metrics = evaluateTopicResults(results, relevant, mustFind);
-      logTopicMetrics('HybridHyDE', metrics, relevant, mustFind, results);
-      expectTopicMetrics(results, metrics, relevant, mustFind);
-    }, 30_000);
-  }
-});
-
-// --- Multi-query RRF ---
-
-describe('Multi-query RRF (multiQueryRRF)', () => {
-  for (const { query, relevant, mustFind } of TOPICS) {
-    it(query, async () => {
-      const results = await multiQueryRRF(query, TOP_K, { postsDir: POSTS_DIR });
-      const metrics = evaluateTopicResults(results, relevant, mustFind);
-      logTopicMetrics('MultiQueryRRF', metrics, relevant, mustFind, results);
-      expectTopicMetrics(results, metrics, relevant, mustFind);
-    }, 30_000);
-  }
-});
-
-// --- Сводная таблица ---
-
-describe('Сводный отчёт Hit@5', () => {
-  it('выводит таблицу по всем методам', async () => {
+describe('Сводный отчёт основных методов', () => {
+  it('выводит таблицу BM25 vs mqHybrid vs rerank', async () => {
     const rows = [];
     const mrrs = [];
+
     for (const { query, relevant, mustFind } of TOPICS) {
-      const [mqHybrid, rerank] = await Promise.all([
+      const [bm25, mqHybrid, rerank] = await Promise.all([
+        search(query, TOP_K, { postsDir: POSTS_DIR }),
         mqHybridRRF(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR }),
-        searchWithRerank(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR }),
+        searchWithRerank(query, TOP_K, { postsDir: POSTS_DIR, embeddingsDir: EMBEDDINGS_DIR, candidateK: 50 }),
       ]);
+
       const fmt = (results, rel, must) => {
         const relFound = countHits(results, rel);
         const mustFound = countHits(results, must);
         return `rel:${relFound}/${rel.length} must:${mustFound}/${must.length}`;
       };
+
       rows.push({
         query,
+        bm25: fmt(bm25, relevant, mustFind),
         mqHybrid: fmt(mqHybrid, relevant, mustFind),
-        rerank:   fmt(rerank,   relevant, mustFind),
+        rerank: fmt(rerank, relevant, mustFind),
       });
+
       mrrs.push({
+        bm25: rr(bm25, relevant),
         mqHybrid: rr(mqHybrid, relevant),
-        rerank:   rr(rerank,   relevant),
+        rerank: rr(rerank, relevant),
       });
     }
 
     console.log(`\nЛегенда: rel:X/Y = X из Y релевантных найдено в top-${TOP_K} | must:X/Y = X из Y mustFind найдено | Потолок recall = 112/112\n`);
     console.table(rows);
 
-    // Суммарные метрики: сумма найденных rel и must по всем темам
-    const totalRel  = TOPICS.reduce((s, t) => s + t.relevant.length, 0);
+    const totalRel = TOPICS.reduce((s, t) => s + t.relevant.length, 0);
     const totalMust = TOPICS.reduce((s, t) => s + t.mustFind.length, 0);
     const meanRR = (col) => (mrrs.reduce((s, r) => s + r[col], 0) / mrrs.length).toFixed(2);
 
     const sumHits = (col, list) => {
       let sum = 0;
-      let i = 0;
-      for (const { relevant, mustFind } of TOPICS) {
-        const cell = rows[i][col];
-        const m = cell.match(list === 'rel' ? /rel:(\d+)/ : /must:(\d+)/);
+      for (const row of rows) {
+        const m = row[col].match(list === 'rel' ? /rel:(\d+)/ : /must:(\d+)/);
         sum += m ? parseInt(m[1]) : 0;
-        i++;
       }
       return sum;
     };
 
     console.log(`\n${'Метод'.padEnd(10)} rel@${TOP_K}           must@${TOP_K}          MRR`);
     console.log('─'.repeat(56));
-    for (const col of ['mqHybrid', 'rerank']) {
-      const relSum  = sumHits(col, 'rel');
+    for (const col of ['bm25', 'mqHybrid', 'rerank']) {
+      const relSum = sumHits(col, 'rel');
       const mustSum = sumHits(col, 'must');
-      console.log(`${col.padEnd(10)} ${String(relSum+'/'+totalRel).padEnd(16)} ${String(mustSum+'/'+totalMust).padEnd(16)} ${meanRR(col)}`);
+      console.log(`${col.padEnd(10)} ${String(relSum + '/' + totalRel).padEnd(16)} ${String(mustSum + '/' + totalMust).padEnd(16)} ${meanRR(col)}`);
     }
-  }, 180_000);
+  }, 240_000);
+});
+
+describe('mqHybridRRF — drop-off диагностика этапов', () => {
+  it('показывает где теряются must/relevant между pre->strict->broad->final', async () => {
+    const rows = [];
+
+    for (const { query, relevant, mustFind } of TOPICS) {
+      const debug = await debugMqHybridSteps(query, TOP_K, {
+        postsDir: POSTS_DIR,
+        embeddingsDir: EMBEDDINGS_DIR,
+      });
+
+      const preIds = (debug.preRefineTop || []).map((p) => p.id);
+      const strictIds = (debug.refineDebug?.strictTop || []).slice(0, TOP_K);
+      const broadIds = (debug.refineDebug?.broadTop || []).slice(0, TOP_K);
+      const finalIds = (debug.refinedTop || []).map((p) => p.id);
+
+      rows.push({
+        query,
+        pre: `rel:${countHitsByIds(preIds, relevant)}/${relevant.length} must:${countHitsByIds(preIds, mustFind)}/${mustFind.length}`,
+        strict: `rel:${countHitsByIds(strictIds, relevant)}/${relevant.length} must:${countHitsByIds(strictIds, mustFind)}/${mustFind.length}`,
+        broad: `rel:${countHitsByIds(broadIds, relevant)}/${relevant.length} must:${countHitsByIds(broadIds, mustFind)}/${mustFind.length}`,
+        final: `rel:${countHitsByIds(finalIds, relevant)}/${relevant.length} must:${countHitsByIds(finalIds, mustFind)}/${mustFind.length}`,
+      });
+    }
+
+    console.log('\nDrop-off (mqHybrid): pre -> strict -> broad -> final');
+    console.table(rows);
+
+    expect(rows.length).toBe(TOPICS.length);
+  }, 300_000);
 });

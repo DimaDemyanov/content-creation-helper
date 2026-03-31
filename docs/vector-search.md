@@ -118,18 +118,29 @@ hybridSearchRRF(query)  // BM25 + rewritten-vector + HyDE → RRF
 
 ### 9. mqHybridRRF — основной метод до re-ранкинга
 
-Объединяет все сигналы в один RRF:
+Объединяет все сигналы в **weighted RRF**:
 
 | Сигнал | Откуда |
 |---|---|
-| BM25 (оригинал) | Точные термины из запроса |
-| BM25 (парафраза 1-4) | Разные варианты словаря |
+| BM25 (expanded original) | Оригинал + синонимы/связанные термины |
+| BM25 (парафразы) | Разные варианты словаря |
 | Vector (rewritten) | Семантика без вопросит. структуры |
 | HyDE | Устраняет фреймовый разрыв |
+| Vector (raw query) | Сохраняет исходный интент запроса |
+| Vector chunked (rewrite/HyDE) | Поднимает длинные посты, где нужная тема в середине текста |
 
-**Итого: 7 ранкингов в RRF.**
+Парафразы получают меньший вес (как более шумный сигнал), а expanded BM25 и vector-сигналы — больший.
 
-Реализация: генерируем парафразы, rewrite и HyDE параллельно, затем параллельно генерируем два эмбеддинга.
+Актуальные шаги (см. `MQ_HYBRID_STEPS` в `search/index.js`):
+1. `prepare_query_signals` — expand/paraphrase/rewrite/hyde
+2. `build_lexical_rankings` — BM25 по expanded original + парафразам
+3. `build_vector_rankings` — векторные ранкинги по rewrite/hyde/raw
+4. `build_intent_alignment_ranking` — отдельный ранкинг по покрытию `must/support` концептов
+5. `fuse_rankings_with_weighted_rrf` — итоговый скор `Σ weight/(k+rank)`
+6. `llm_relevance_refinement` — listwise доранжирование top-кандидатов через `gpt-4o-mini`
+7. `return_top_k` — top-K постов
+
+Для диагностики шагов добавлен debug API: `debugMqHybridSteps()`.
 
 ---
 

@@ -23,6 +23,45 @@ const paraphrasesCache = new Map();
 const hydeCache = new Map();
 const rewriteCache = new Map();
 
+// Три основных режима поиска для продукта:
+// - fast: быстрый и дешёвый BM25
+// - balanced: лучший компромисс по качеству (mqHybridRRF)
+// - highRecall: максимальный recall через LLM re-rank
+export const PRIMARY_SEARCH_METHODS = Object.freeze({
+  fast: 'search',
+  balanced: 'mqHybridRRF',
+  highRecall: 'searchWithRerank',
+});
+
+const MQ_HYBRID_DEFAULT_WEIGHTS = Object.freeze({
+  bm25Raw: 1.05,
+  bm25Expanded: 1.35,
+  bm25Paraphrase: 0.75,
+  bm25Rewrite: 0.9,
+  bm25Feedback: 0.45,
+  vecRewrite: 1.15,
+  vecHyde: 1.05,
+  vecRaw: 0.55,
+  vecRewriteChunk: 0.95,
+  vecHydeChunk: 0.85,
+  vecCentroid: 0.55,
+  channelPrior: 0.2,
+  intentAlignment: 1.65,
+  directMatch: 0.25,
+});
+
+// Документированная последовательность шагов mqHybrid.
+export const MQ_HYBRID_STEPS = Object.freeze([
+  'prepare_query_signals',
+  'build_lexical_rankings',
+  'build_vector_rankings',
+  'expand_with_pseudo_relevance_feedback',
+  'build_intent_alignment_ranking',
+  'fuse_rankings_with_weighted_rrf',
+  'llm_relevance_refinement',
+  'return_top_k',
+]);
+
 // Диск-кэш для дорогих GPT-вызовов (паrafrazы, HyDE, rewrite, synonyms)
 // Ключ: тип + запрос. Позволяет переиспользовать между запусками.
 async function diskCacheGet(type, query) {
@@ -421,6 +460,7 @@ async function rewriteQueryForEmbedding(query) {
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
+    temperature: 0,
     max_tokens: 60,
     messages: [{
       role: 'user',
@@ -443,6 +483,7 @@ async function generateHypotheticalDocument(query) {
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
+    temperature: 0,
     max_tokens: 200,
     messages: [{
       role: 'user',
@@ -502,75 +543,624 @@ export async function multiQueryRRF(query, topK = 10, { postsDir, k = 60 } = {})
     .map(({ id, score }) => ({ ...postMap.get(id), score }));
 }
 
-/**
- * Комбинированный поиск: Multi-query BM25 + Vector + HyDE → RRF.
- *
- * Объединяет все сигналы:
- * - BM25 по оригинальному запросу + 4 парафразам (ловит разный словарь)
- * - Вектор переписанного запроса (семантика без вопросительной структуры)
- * - HyDE вектор (устраняет фреймовый разрыв — разные роли, разный стиль)
- *
- * Итого 7 сигналов в RRF. Каждый ловит то, что другие пропускают.
- */
-export async function mqHybridRRF(query, topK = 10, { postsDir, embeddingsDir, k = 60 } = {}) {
-  const allPosts = await loadAllPosts(postsDir);
-  if (allPosts.length === 0) return [];
-
-  const embeddings = await loadAllEmbeddings(embeddingsDir);
-  const postMap = new Map(allPosts.map(p => [p.id, p]));
-
-  // Параллельно: парафразы, переписанный запрос, HyDE документ
-  const [paraphrases, rewritten, hypothetical] = await Promise.all([
-    generateParaphrases(query),
-    rewriteQueryForEmbedding(query),
-    generateHypotheticalDocument(query),
-  ]);
-
-  // Два вектора параллельно
-  const [queryVector, hydeVector] = await Promise.all([
-    generateEmbedding(rewritten),
-    generateEmbedding(hypothetical),
-  ]);
-
-  // BM25 ранкинги: оригинал + 4 парафразы
-  const engine = buildIndex(allPosts);
-  const bm25Queries = [query, ...paraphrases];
-  const bm25Rankings = bm25Queries.map(q => {
-    const results = engine.search(q);
-    return new Map(results.map(([id], i) => [id, i]));
-  });
-
-  // Векторные ранкинги
-  const vecScored = allPosts
+function buildVectorRanks(allPosts, embeddings, vector) {
+  const scored = allPosts
     .filter(p => embeddings.has(p.id))
-    .map(p => ({ id: p.id, score: cosineSimilarity(queryVector, embeddings.get(p.id)) }))
+    .map(p => ({ id: p.id, score: cosineSimilarity(vector, embeddings.get(p.id)) }))
     .sort((a, b) => b.score - a.score);
-  const vecRanks = new Map(vecScored.map(({ id }, i) => [id, i]));
+  return new Map(scored.map(({ id }, i) => [id, i]));
+}
 
-  const hydeScored = allPosts
-    .filter(p => embeddings.has(p.id))
-    .map(p => ({ id: p.id, score: cosineSimilarity(hydeVector, embeddings.get(p.id)) }))
-    .sort((a, b) => b.score - a.score);
-  const hydeRanks = new Map(hydeScored.map(({ id }, i) => [id, i]));
+function buildChunkVectorRanks(chunkMap, vector) {
+  const scored = [];
+  for (const [postId, chunks] of chunkMap) {
+    if (!chunks || chunks.length === 0) continue;
+    const bestScore = Math.max(...chunks.map(c => cosineSimilarity(vector, c.vector)));
+    scored.push({ id: postId, score: bestScore });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  return new Map(scored.map(({ id }, i) => [id, i]));
+}
 
-  // Все ранкинги вместе
-  const allRankings = [...bm25Rankings, vecRanks, hydeRanks];
-
-  // RRF fusion
-  const allIds = new Set(allRankings.flatMap(r => [...r.keys()]));
-  const scored = Array.from(allIds).map(id => {
+function computeWeightedRrfScores(signals, k, fallbackRank) {
+  const allIds = new Set(signals.flatMap(s => [...s.ranks.keys()]));
+  return Array.from(allIds).map(id => {
     let score = 0;
-    for (const ranks of allRankings) {
-      const rank = ranks.has(id) ? ranks.get(id) : allPosts.length;
-      score += 1 / (k + rank);
+    for (const { ranks, weight } of signals) {
+      const rank = ranks.has(id) ? ranks.get(id) : fallbackRank;
+      score += weight * (1 / (k + rank));
     }
     return { id, score };
   });
+}
 
-  return scored
+function averageVectors(vectors) {
+  if (!vectors || vectors.length === 0) return null;
+  const size = vectors[0].length;
+  const acc = new Array(size).fill(0);
+  for (const vec of vectors) {
+    for (let i = 0; i < size; i++) acc[i] += vec[i];
+  }
+  for (let i = 0; i < size; i++) acc[i] /= vectors.length;
+  return acc;
+}
+
+function tokenizeAndStem(text) {
+  const tokens = (text.toLowerCase().match(/[\p{L}\p{N}]+/gu) || [])
+    .filter(t => !ruStopwordsDict[t]);
+  return ruStemmer.stem(tokens);
+}
+
+function toStemSet(text) {
+  return new Set(tokenizeAndStem(text));
+}
+
+function buildStemBigrams(stems) {
+  const pairs = [];
+  for (let i = 0; i < stems.length - 1; i++) {
+    if (stems[i] && stems[i + 1]) pairs.push(`${stems[i]}::${stems[i + 1]}`);
+  }
+  return pairs;
+}
+
+function conceptCoverage(postStemSet, conceptStemSet) {
+  if (conceptStemSet.size === 0) return 0;
+  let hit = 0;
+  for (const stem of conceptStemSet) {
+    if (postStemSet.has(stem)) hit++;
+  }
+  return hit / conceptStemSet.size;
+}
+
+function computeDirectMatchScore(postStemSet, queryStemSet, queryBigrams = []) {
+  if (queryStemSet.size === 0) return 0;
+
+  let overlapHits = 0;
+  for (const stem of queryStemSet) {
+    if (postStemSet.has(stem)) overlapHits++;
+  }
+  const overlap = overlapHits / queryStemSet.size;
+
+  let bigramHits = 0;
+  for (const pair of queryBigrams) {
+    const [a, b] = pair.split('::');
+    if (postStemSet.has(a) && postStemSet.has(b)) bigramHits++;
+  }
+  const bigramCoverage = queryBigrams.length > 0 ? bigramHits / queryBigrams.length : 0;
+
+  return (0.75 * overlap) + (0.25 * bigramCoverage);
+}
+
+function buildDirectMatchRanks(posts, query, { corpusForDf = posts } = {}) {
+  const rawQueryStems = tokenizeAndStem(query).filter(stem => stem.length >= 3);
+  if (rawQueryStems.length === 0) {
+    return { ranks: new Map(), scoreMap: new Map() };
+  }
+
+  // Убираем слишком частые query-термы (низкая дискриминативность по корпусу).
+  const df = new Map();
+  for (const post of corpusForDf) {
+    const stemSet = toStemSet(`${post.textClean || ''} ${post.ocrText || ''}`);
+    for (const stem of new Set(rawQueryStems)) {
+      if (stemSet.has(stem)) df.set(stem, (df.get(stem) || 0) + 1);
+    }
+  }
+
+  const corpusSize = Math.max(1, corpusForDf.length);
+  const discriminative = rawQueryStems.filter(stem => ((df.get(stem) || 0) / corpusSize) <= 0.45);
+  const queryStems = discriminative.length > 0 ? discriminative : rawQueryStems;
+  const queryStemSet = new Set(queryStems);
+  const queryBigrams = buildStemBigrams(queryStems);
+
+  const ranked = posts
+    .map((post) => {
+      const postStemSet = toStemSet(`${post.textClean || ''} ${post.ocrText || ''}`);
+      const score = computeDirectMatchScore(postStemSet, queryStemSet, queryBigrams);
+      return { id: post.id, score };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  return {
+    ranks: new Map(ranked.map(({ id }, i) => [id, i])),
+    scoreMap: new Map(ranked.map(({ id, score }) => [id, score])),
+  };
+}
+
+function buildIntentProfile(query, expandedTerms = []) {
+  const rawTokens = (query.toLowerCase().match(/[\p{L}\p{N}]+/gu) || [])
+    .filter(t => !ruStopwordsDict[t] && t.length >= 3);
+
+  const mustConcepts = Array.from(new Set(rawTokens)).slice(0, 6);
+  const supportingConcepts = expandedTerms
+    .map(t => String(t || '').toLowerCase().trim())
+    .filter(Boolean)
+    .filter(t => !mustConcepts.includes(t))
+    .slice(0, 8);
+
+  return {
+    queryType: 'other',
+    mustConcepts,
+    supportingConcepts,
+  };
+}
+
+function buildIntentAlignment(allPosts, query, intentProfile) {
+  const queryStems = toStemSet(query);
+  const mustStemSets = intentProfile.mustConcepts.map(c => toStemSet(c)).filter(s => s.size > 0);
+  const supportStemSets = intentProfile.supportingConcepts.map(c => toStemSet(c)).filter(s => s.size > 0);
+
+  const scored = allPosts.map((post) => {
+    const text = `${post.textClean || ''} ${post.ocrText || ''}`.trim();
+    const postStemSet = toStemSet(text);
+
+    const mustCoverage = mustStemSets.length > 0
+      ? mustStemSets.filter(concept => conceptCoverage(postStemSet, concept) >= 0.6).length / mustStemSets.length
+      : 0;
+    const supportCoverage = supportStemSets.length > 0
+      ? supportStemSets.filter(concept => conceptCoverage(postStemSet, concept) >= 0.5).length / supportStemSets.length
+      : 0;
+
+    let queryOverlapHits = 0;
+    for (const stem of queryStems) {
+      if (postStemSet.has(stem)) queryOverlapHits++;
+    }
+    const overlap = queryStems.size > 0 ? queryOverlapHits / queryStems.size : 0;
+
+    const score = (0.65 * mustCoverage) + (0.25 * supportCoverage) + (0.10 * overlap);
+    return { id: post.id, score, mustCoverage };
+  });
+
+  const ranks = new Map(
+    scored
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return b.mustCoverage - a.mustCoverage;
+      })
+      .map(({ id }, idx) => [id, idx])
+  );
+
+  const scoreMap = new Map(scored.map(({ id, score }) => [id, score]));
+  return { ranks, scoreMap };
+}
+
+function buildPseudoRelevanceFeedback({
+  allPosts,
+  signals,
+  k,
+  engine,
+  expandedQuery,
+  query,
+  embeddings,
+  rrfWeights,
+  seedK = 24,
+}) {
+  const feedbackSignals = [];
+  if (signals.length === 0 || allPosts.length === 0) return feedbackSignals;
+
+  const prelim = computeWeightedRrfScores(signals, k, allPosts.length)
     .sort((a, b) => b.score - a.score)
-    .slice(0, topK)
-    .map(({ id, score }) => ({ ...postMap.get(id), score }));
+    .slice(0, Math.min(seedK, allPosts.length));
+  const seedIds = prelim.map(x => x.id);
+  if (seedIds.length === 0) return feedbackSignals;
+
+  const postMap = new Map(allPosts.map(p => [p.id, p]));
+  const queryStems = toStemSet(query);
+
+  // 1) Lexical PRF: дополняем BM25-запрос термами из seed-документов.
+  const stemFreq = new Map();
+  for (const id of seedIds) {
+    const post = postMap.get(id);
+    if (!post) continue;
+    const stemSet = toStemSet(`${post.textClean || ''} ${post.ocrText || ''}`);
+    for (const stem of stemSet) {
+      if (queryStems.has(stem)) continue;
+      stemFreq.set(stem, (stemFreq.get(stem) || 0) + 1);
+    }
+  }
+
+  const feedbackTerms = [...stemFreq.entries()]
+    .filter(([, freq]) => freq >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([stem]) => stem);
+
+  if (feedbackTerms.length > 0) {
+    const bm25FeedbackQuery = `${expandedQuery} ${feedbackTerms.join(' ')}`.trim();
+    const ranks = new Map(engine.search(bm25FeedbackQuery).map(([id], i) => [id, i]));
+    feedbackSignals.push({
+      name: 'bm25Feedback',
+      ranks,
+      weight: rrfWeights.bm25Feedback,
+    });
+  }
+
+  // 2) Vector PRF: добавляем ранкинг по centroid seed-эмбеддингов.
+  if (embeddings.size > 0) {
+    const seedVectors = seedIds
+      .filter(id => embeddings.has(id))
+      .map(id => embeddings.get(id));
+    const centroid = averageVectors(seedVectors);
+    if (centroid) {
+      feedbackSignals.push({
+        name: 'vecCentroid',
+        ranks: buildVectorRanks(allPosts, embeddings, centroid),
+        weight: rrfWeights.vecCentroid,
+      });
+    }
+  }
+
+  // 3) Channel prior: мягко повышаем каналы, подтверждённые seed-результатами.
+  const channelWeights = new Map();
+  seedIds.forEach((id, rank) => {
+    const post = postMap.get(id);
+    if (!post || !post.channel) return;
+    channelWeights.set(post.channel, (channelWeights.get(post.channel) || 0) + (1 / (1 + rank)));
+  });
+
+  const channelEntries = [...channelWeights.entries()].sort((a, b) => b[1] - a[1]);
+  const totalWeight = channelEntries.reduce((sum, [, w]) => sum + w, 0) || 1;
+  const topShare = channelEntries.length > 0 ? channelEntries[0][1] / totalWeight : 0;
+
+  if (channelEntries.length > 0 && topShare < 0.9) {
+    const ranked = allPosts
+      .map((post) => {
+        const channelScore = channelWeights.get(post.channel) || 0;
+        const overlap = conceptCoverage(toStemSet(`${post.textClean || ''} ${post.ocrText || ''}`), queryStems);
+        return { id: post.id, score: channelScore + (0.35 * overlap) };
+      })
+      .sort((a, b) => b.score - a.score);
+
+    feedbackSignals.push({
+      name: 'channelPrior',
+      ranks: new Map(ranked.map(({ id }, i) => [id, i])),
+      weight: rrfWeights.channelPrior,
+    });
+  }
+
+  return feedbackSignals;
+}
+
+function resolveChunkEmbeddingsDir(embeddingsDir, chunkEmbeddingsDir) {
+  if (chunkEmbeddingsDir) return chunkEmbeddingsDir;
+  if (embeddingsDir) return path.join(path.dirname(embeddingsDir), 'chunk-embeddings');
+  return undefined;
+}
+
+function truncateText(text, maxChars) {
+  if (text.length <= maxChars) return text;
+  return text.slice(0, Math.max(0, maxChars - 1)).trimEnd() + '…';
+}
+
+function buildQueryAwareSnippet(text, query, maxChars = 500) {
+  const normalized = (text || '').replace(/\s+/g, ' ').trim();
+  if (!normalized) return '';
+  if (normalized.length <= maxChars) return normalized;
+
+  const queryStems = toStemSet(query);
+  if (queryStems.size === 0) {
+    return truncateText(normalized, maxChars);
+  }
+
+  const sentences = normalized.match(/[^.!?]+[.!?]*/g) ?? [normalized];
+  const scored = sentences
+    .map((s, idx) => {
+      const stemSet = toStemSet(s);
+      let hits = 0;
+      for (const stem of queryStems) if (stemSet.has(stem)) hits++;
+      return { idx, text: s.trim(), hits };
+    })
+    .filter(x => x.text.length > 0);
+
+  scored.sort((a, b) => {
+    if (b.hits !== a.hits) return b.hits - a.hits;
+    return a.idx - b.idx;
+  });
+
+  if (scored.length === 0 || scored[0].hits === 0) {
+    // fallback: "бутерброд" если совпадений не нашли
+    const sandwich = normalized.length > 600
+      ? normalized.slice(0, 350) + ' … ' + normalized.slice(-150)
+      : normalized.slice(0, 500);
+    return truncateText(sandwich, maxChars);
+  }
+
+  const selectedIdx = new Set([scored[0].idx]);
+  for (let i = 1; i < scored.length && selectedIdx.size < 3; i++) {
+    if (scored[i].hits === 0) break;
+    selectedIdx.add(scored[i].idx);
+  }
+  // Добавляем первую фразу как контекст, если она не выбрана
+  if (!selectedIdx.has(0)) selectedIdx.add(0);
+
+  const ordered = [...selectedIdx].sort((a, b) => a - b).map(i => sentences[i].trim()).filter(Boolean);
+  return truncateText(ordered.join(' … '), maxChars);
+}
+
+/**
+ * Строит внутреннее состояние mqHybrid по шагам:
+ * 1) подготавливает сигналы запроса (expand/paraphrase/rewrite/hyde)
+ * 2) строит лексические ранкинги BM25
+ * 3) строит векторные ранкинги (rewrite/HyDE/raw)
+ * 4) расширяет сигналы через pseudo relevance feedback
+ * 5) добавляет intent-alignment ранкинг
+ * 6) объединяет сигналы через weighted RRF
+ */
+async function buildMqHybridState(
+  query,
+  {
+    postsDir,
+    embeddingsDir,
+    chunkEmbeddingsDir,
+    k = 60,
+    paraphraseCount = 4,
+    prfSeedK = 24,
+    weights = {},
+  } = {}
+) {
+  const allPosts = await loadAllPosts(postsDir);
+  const postMap = new Map(allPosts.map(p => [p.id, p]));
+  const rrfWeights = { ...MQ_HYBRID_DEFAULT_WEIGHTS, ...weights };
+
+  if (allPosts.length === 0) {
+    return {
+      allPosts,
+      postMap,
+      artifacts: {
+        expandedTerms: [],
+        expandedQuery: '',
+        paraphrases: [],
+        rewritten: '',
+        hypothetical: '',
+      },
+      signals: [],
+      fusedScores: [],
+      k,
+      paraphraseCount,
+      prfSeedK,
+      rrfWeights,
+    };
+  }
+
+  // Step 1: подготовка сигналов запроса
+  const [expandedTerms, paraphrases, rewritten, hypothetical] = await Promise.all([
+    expandQuery(query),
+    generateParaphrases(query, paraphraseCount),
+    rewriteQueryForEmbedding(query),
+    generateHypotheticalDocument(query),
+  ]);
+  const expandedQuery = expandedTerms.join(' ');
+  const intentProfile = buildIntentProfile(query, expandedTerms);
+
+  // Step 2: лексические ранкинги
+  const engine = buildIndex(allPosts);
+  const signals = [];
+
+  const bm25RawRanks = new Map(engine.search(query).map(([id], i) => [id, i]));
+  signals.push({ name: 'bm25Raw', ranks: bm25RawRanks, weight: rrfWeights.bm25Raw });
+
+  const bm25ExpandedRanks = new Map(engine.search(expandedQuery).map(([id], i) => [id, i]));
+  signals.push({ name: 'bm25Expanded', ranks: bm25ExpandedRanks, weight: rrfWeights.bm25Expanded });
+
+  const bm25RewriteRanks = new Map(engine.search(rewritten).map(([id], i) => [id, i]));
+  signals.push({ name: 'bm25Rewrite', ranks: bm25RewriteRanks, weight: rrfWeights.bm25Rewrite });
+
+  paraphrases.forEach((q, idx) => {
+    const ranks = new Map(engine.search(q).map(([id], i) => [id, i]));
+    signals.push({ name: `bm25Para${idx + 1}`, ranks, weight: rrfWeights.bm25Paraphrase });
+  });
+
+  // Step 3: векторные ранкинги
+  const embeddings = await loadAllEmbeddings(embeddingsDir);
+  if (embeddings.size > 0) {
+    const [rewriteVec, hydeVec, rawVec] = await Promise.all([
+      generateEmbedding(rewritten),
+      generateEmbedding(hypothetical),
+      generateEmbedding(query),
+    ]);
+
+    signals.push({
+      name: 'vecRewrite',
+      ranks: buildVectorRanks(allPosts, embeddings, rewriteVec),
+      weight: rrfWeights.vecRewrite,
+    });
+    signals.push({
+      name: 'vecHyDE',
+      ranks: buildVectorRanks(allPosts, embeddings, hydeVec),
+      weight: rrfWeights.vecHyde,
+    });
+    signals.push({
+      name: 'vecRaw',
+      ranks: buildVectorRanks(allPosts, embeddings, rawVec),
+      weight: rrfWeights.vecRaw,
+    });
+
+    const chunkDir = resolveChunkEmbeddingsDir(embeddingsDir, chunkEmbeddingsDir);
+    const chunkMap = await loadAllChunkEmbeddings(chunkDir);
+    if (chunkMap.size > 0) {
+      signals.push({
+        name: 'vecRewriteChunk',
+        ranks: buildChunkVectorRanks(chunkMap, rewriteVec),
+        weight: rrfWeights.vecRewriteChunk,
+      });
+      signals.push({
+        name: 'vecHyDEChunk',
+        ranks: buildChunkVectorRanks(chunkMap, hydeVec),
+        weight: rrfWeights.vecHydeChunk,
+      });
+    }
+  }
+
+  // Step 4: pseudo relevance feedback (lexical/vector/channel)
+  const feedbackSignals = buildPseudoRelevanceFeedback({
+    allPosts,
+    signals,
+    k,
+    engine,
+    expandedQuery,
+    query,
+    embeddings,
+    rrfWeights,
+    seedK: prfSeedK,
+  });
+  signals.push(...feedbackSignals);
+
+  // Step 5: intent alignment ranking (структурное соответствие теме)
+  const intentAlignment = buildIntentAlignment(allPosts, query, intentProfile);
+  signals.push({
+    name: 'intentAlignment',
+    ranks: intentAlignment.ranks,
+    weight: rrfWeights.intentAlignment,
+  });
+
+  const directMatch = buildDirectMatchRanks(allPosts, query);
+  signals.push({
+    name: 'directMatch',
+    ranks: directMatch.ranks,
+    weight: rrfWeights.directMatch,
+  });
+
+  // Step 6: weighted RRF fusion
+  const fusedScores = computeWeightedRrfScores(signals, k, allPosts.length);
+
+  return {
+    allPosts,
+    postMap,
+    artifacts: {
+      expandedTerms,
+      expandedQuery,
+      paraphrases,
+      rewritten,
+      hypothetical,
+      intentProfile,
+    },
+    signals,
+    fusedScores,
+    k,
+    paraphraseCount,
+    prfSeedK,
+    rrfWeights,
+  };
+}
+
+/**
+ * Debug API для интеграционных тестов mqHybrid.
+ * Возвращает артефакты каждого шага и вклад каждого сигнала.
+ */
+export async function debugMqHybridSteps(
+  query,
+  topK = 10,
+  {
+    postsDir,
+    embeddingsDir,
+    chunkEmbeddingsDir,
+    k = 60,
+    paraphraseCount = 4,
+    prfSeedK = 24,
+    weights = {},
+    llmRefine = true,
+    refineCandidateK = 300,
+    topSignalK = 5,
+  } = {}
+) {
+  const state = await buildMqHybridState(query, { postsDir, embeddingsDir, chunkEmbeddingsDir, k, paraphraseCount, prfSeedK, weights });
+  const fusedTop = [...state.fusedScores]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK);
+
+  const baseCandidates = [...state.fusedScores]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, Math.max(topK, refineCandidateK))
+    .map(({ id, score }) => ({ ...state.postMap.get(id), __baseScore: score }));
+  const preRefineTop = baseCandidates.slice(0, topK);
+
+  let refined = [];
+  let refineDebug = null;
+  if (llmRefine) {
+    try {
+      const refinedPayload = await llmRefineCandidates(query, baseCandidates, topK, { debug: true });
+      if (Array.isArray(refinedPayload)) {
+        refined = refinedPayload;
+      } else {
+        refined = refinedPayload.results || [];
+        refineDebug = refinedPayload.debugInfo || null;
+      }
+    } catch {
+      refined = baseCandidates.slice(0, topK);
+    }
+  } else {
+    refined = baseCandidates.slice(0, topK);
+  }
+
+  const signalStats = state.signals.map(({ name, weight, ranks }) => ({
+    name,
+    weight,
+    size: ranks.size,
+    topIds: [...ranks.entries()]
+      .sort((a, b) => a[1] - b[1])
+      .slice(0, topSignalK)
+      .map(([id]) => id),
+  }));
+
+  return {
+    query,
+    steps: MQ_HYBRID_STEPS,
+    config: {
+      k: state.k,
+      paraphraseCount: state.paraphraseCount,
+      prfSeedK: state.prfSeedK,
+      weights: state.rrfWeights,
+    },
+    artifacts: state.artifacts,
+    signalStats,
+    fusedTop,
+    preRefineTop: preRefineTop.map(({ __baseScore, ...post }) => ({ ...post, score: __baseScore ?? 0 })),
+    refineDebug,
+    refinedTop: refined.map(({ __baseScore, ...post }) => ({ ...post, score: __baseScore ?? 0 })),
+    results: refined.map(({ __baseScore, ...post }) => ({ ...post, score: __baseScore ?? 0 })),
+  };
+}
+
+/**
+ * Комбинированный поиск: Multi-query BM25 + Vector + HyDE → weighted RRF.
+ */
+export async function mqHybridRRF(
+  query,
+  topK = 10,
+  {
+    postsDir,
+    embeddingsDir,
+    chunkEmbeddingsDir,
+    k = 60,
+    paraphraseCount = 4,
+    prfSeedK = 24,
+    weights = {},
+    llmRefine = true,
+    refineCandidateK = 300,
+  } = {}
+) {
+  const state = await buildMqHybridState(query, { postsDir, embeddingsDir, chunkEmbeddingsDir, k, paraphraseCount, prfSeedK, weights });
+  const fusedSorted = state.fusedScores
+    .sort((a, b) => b.score - a.score)
+    .map(({ id, score }) => ({ post: state.postMap.get(id), score }));
+
+  if (!llmRefine) {
+    return fusedSorted
+      .slice(0, topK)
+      .map(({ post, score }) => ({ ...post, score }));
+  }
+
+  const candidates = fusedSorted
+    .slice(0, Math.max(topK, refineCandidateK))
+    .map(({ post, score }) => ({ ...post, __baseScore: score }));
+
+  try {
+    const reranked = await llmRefineCandidates(query, candidates, topK);
+    return reranked.map(({ __baseScore, ...post }) => ({ ...post, score: __baseScore ?? 0 }));
+  } catch {
+    return fusedSorted
+      .slice(0, topK)
+      .map(({ post, score }) => ({ ...post, score }));
+  }
 }
 
 /**
@@ -583,7 +1173,7 @@ export async function mqHybridRRF(query, topK = 10, { postsDir, embeddingsDir, k
  * Подходит когда нужно собрать весь материал по теме, а не только топ-15.
  */
 export async function searchRelevant(query, { postsDir, embeddingsDir, candidateK = 100 } = {}) {
-  const candidates = await mqHybridRRF(query, candidateK, { postsDir, embeddingsDir });
+  const candidates = await mqHybridRRF(query, candidateK, { postsDir, embeddingsDir, llmRefine: false });
   if (candidates.length === 0) return [];
   return await llmFilterAll(query, candidates);
 }
@@ -592,15 +1182,14 @@ async function llmFilterAll(query, candidates) {
   const postList = candidates
     .map((p, i) => {
       const text = p.textClean || p.ocrText || '';
-      const snippet = text.length > 600
-        ? text.slice(0, 350) + ' … ' + text.slice(-150)
-        : text.slice(0, 500);
+      const snippet = buildQueryAwareSnippet(text, query, 500);
       return `[${i + 1}] ${snippet}`;
     })
     .join('\n\n');
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
+    temperature: 0,
     max_tokens: 600,
     messages: [
       {
@@ -609,7 +1198,7 @@ async function llmFilterAll(query, candidates) {
       },
       {
         role: 'user',
-        content: `Тема контент-плана: "${query}"\n\nВерни номера ВСЕХ постов которые могут быть полезны для этой темы, от наиболее к наименее релевантному. Не ограничивай себя числом — верни все подходящие. Посты совсем не по теме не включай.\n\nТолько номера через запятую, без пояснений.\n\n${postList}`,
+        content: `Тема контент-плана: "${query}"\n\nВерни номера ВСЕХ постов которые могут быть полезны для этой темы, от наиболее к наименее релевантному. Не ограничивай себя числом — верни все подходящие. В приоритете прямые тематические попадания (конкретные истории/факты/сценарии), затем косвенные. Посты совсем не по теме не включай.\n\nТолько номера через запятую, без пояснений.\n\n${postList}`,
       },
     ],
   });
@@ -622,13 +1211,139 @@ async function llmFilterAll(query, candidates) {
   return indices.map(i => candidates[i]);
 }
 
+async function llmRefineCandidates(query, candidates, topK, { batchSize = 50, debug = false } = {}) {
+  if (candidates.length === 0) return [];
+  if (candidates.length <= batchSize) {
+    const results = await llmRerank(query, candidates, topK);
+    if (!debug) return results;
+    return {
+      results,
+      debugInfo: {
+        mode: 'small_batch',
+        candidates: candidates.map((p) => p.id),
+        final: results.map((p) => p.id),
+      },
+    };
+  }
+
+  const picked = new Map(); // id -> { post, score }
+  const batchSelections = [];
+  for (let i = 0; i < candidates.length; i += batchSize) {
+    const batch = candidates.slice(i, i + batchSize);
+    const relevant = await llmFilterAll(query, batch);
+    batchSelections.push({
+      offset: i,
+      size: batch.length,
+      selectedIds: relevant.map((p) => p.id),
+    });
+    relevant.forEach((post, rank) => {
+      const score = (1 / (1 + rank)) + ((post.__baseScore ?? 0) * 0.25);
+      const prev = picked.get(post.id);
+      if (!prev || score > prev.score) picked.set(post.id, { post, score });
+    });
+  }
+
+  const shortlistLimit = Math.max(topK * 6, 90);
+  const shortlist = Array.from(picked.values())
+    .sort((a, b) => b.score - a.score)
+    .slice(0, shortlistLimit)
+    .map(x => x.post);
+
+  const seen = new Set(shortlist.map(p => p.id));
+  for (const candidate of candidates) {
+    if (shortlist.length >= shortlistLimit) break;
+    if (!seen.has(candidate.id)) {
+      shortlist.push(candidate);
+      seen.add(candidate.id);
+    }
+  }
+
+  const strictTop = await llmRerank(query, shortlist, Math.max(topK * 2, 30), { mode: 'strict' });
+  const broadTop = await llmRerank(query, shortlist, Math.max(topK * 2, 30), { mode: 'broad' });
+  const directMatch = buildDirectMatchRanks(shortlist, query, { corpusForDf: candidates });
+  const pickedRanks = new Map(
+    Array.from(picked.values())
+      .sort((a, b) => b.score - a.score)
+      .map(({ post }, i) => [post.id, i])
+  );
+
+  const strictRanks = new Map(strictTop.map((p, i) => [p.id, i]));
+  const broadRanks = new Map(broadTop.map((p, i) => [p.id, i]));
+  const baseRanks = new Map(candidates.map((p, i) => [p.id, i]));
+  const directRanks = directMatch.ranks;
+  const directScores = directMatch.scoreMap;
+
+  const byId = new Map(candidates.map(p => [p.id, p]));
+  const allIds = new Set([
+    ...strictRanks.keys(),
+    ...broadRanks.keys(),
+    ...baseRanks.keys(),
+    ...directRanks.keys(),
+    ...pickedRanks.keys(),
+  ]);
+  const k = 60;
+
+  const fused = Array.from(allIds).map((id) => {
+    const strict = 1 / (k + (strictRanks.get(id) ?? shortlist.length));
+    const broad = 1 / (k + (broadRanks.get(id) ?? shortlist.length));
+    const base = 1 / (k + (baseRanks.get(id) ?? candidates.length));
+    const direct = 1 / (k + (directRanks.get(id) ?? shortlist.length));
+    const picked = 1 / (k + (pickedRanks.get(id) ?? shortlist.length));
+    const directBoost = (directScores.get(id) ?? 0) * 0.05;
+    const score = (1.0 * strict) + (0.85 * broad) + (0.15 * base) + (0.25 * direct) + (0.45 * picked) + directBoost;
+    return { id, score };
+  });
+
+  const fusedIds = fused
+    .sort((a, b) => b.score - a.score)
+    .map(({ id }) => id);
+  const fusedTop = fusedIds.slice(0, Math.max(topK * 2, 30));
+  const llmWindow = Math.max(topK * 2, 30);
+  const strictHead = strictTop.slice(0, Math.max(topK, 15)).map((p) => p.id);
+  const broadHead = broadTop.slice(0, Math.max(topK, 15)).map((p) => p.id);
+  const broadHeadSet = new Set(broadHead);
+  const consensus = strictHead.filter((id) => broadHeadSet.has(id)).slice(0, Math.max(5, Math.floor(topK / 2)));
+
+  const eligible = new Set([
+    ...strictTop.slice(0, llmWindow).map((p) => p.id),
+    ...broadTop.slice(0, llmWindow).map((p) => p.id),
+    ...candidates.slice(0, topK).map((p) => p.id),
+  ]);
+
+  const prioritized = fusedIds.filter((id) => eligible.has(id));
+  const finalIds = [...consensus, ...prioritized, ...fusedIds]
+    .filter((id, idx, arr) => arr.indexOf(id) === idx)
+    .slice(0, topK);
+
+  const results = finalIds
+    .map((id) => byId.get(id))
+    .filter(Boolean);
+
+  if (!debug) return results;
+
+  return {
+    results,
+    debugInfo: {
+      mode: 'multi_batch',
+      batchSelections,
+      picked: Array.from(picked.keys()),
+      shortlist: shortlist.map((p) => p.id),
+      strictTop: strictTop.map((p) => p.id),
+      broadTop: broadTop.map((p) => p.id),
+      fusedTop,
+      baseAnchorIds: [],
+      final: results.map((p) => p.id),
+    },
+  };
+}
+
 /**
  * Pointwise re-ranking: оценивает каждый кандидат независимо по шкале 1-10,
  * возвращает посты со скором >= minScore. Нет позиционного bias — каждый пост
  * оценивается отдельным параллельным запросом.
  */
 export async function searchWithRerank(query, topK = 10, { postsDir, embeddingsDir, candidateK = 50, minScore = 7 } = {}) {
-  const candidates = await mqHybridRRF(query, candidateK, { postsDir, embeddingsDir });
+  const candidates = await mqHybridRRF(query, candidateK, { postsDir, embeddingsDir, llmRefine: false });
   if (candidates.length === 0) return [];
 
   const scores = await llmRerankPointwise(query, candidates);
@@ -637,6 +1352,7 @@ export async function searchWithRerank(query, topK = 10, { postsDir, embeddingsD
   return scores
     .filter(({ score }) => score >= minScore)
     .sort((a, b) => b.score - a.score)
+    .slice(0, topK)
     .map(({ post }) => post);
 }
 
@@ -644,12 +1360,11 @@ async function llmRerankPointwise(query, candidates) {
   const results = await Promise.all(
     candidates.map(async (post) => {
       const text = post.textClean || post.ocrText || '';
-      const snippet = text.length > 600
-        ? text.slice(0, 350) + ' … ' + text.slice(-150)
-        : text.slice(0, 500);
+      const snippet = buildQueryAwareSnippet(text, query, 500);
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
+        temperature: 0,
         max_tokens: 5,
         messages: [
           {
@@ -676,7 +1391,7 @@ async function llmRerankPointwise(query, candidates) {
  * Listwise re-ranking (устаревший вариант, оставлен для сравнения).
  */
 async function searchWithRerankListwise(query, topK = 10, { postsDir, embeddingsDir, candidateK = 50 } = {}) {
-  const candidates = await mqHybridRRF(query, candidateK, { postsDir, embeddingsDir });
+  const candidates = await mqHybridRRF(query, candidateK, { postsDir, embeddingsDir, llmRefine: false });
   if (candidates.length === 0) return [];
 
   const reranked = await llmRerank(query, candidates, topK * 2);
@@ -700,20 +1415,18 @@ async function searchWithRerankListwise(query, topK = 10, { postsDir, embeddings
     .map(({ id }) => postMap.get(id));
 }
 
-async function llmRerank(query, candidates, topK) {
+async function llmRerank(query, candidates, topK, { mode = 'strict' } = {}) {
   const postList = candidates
     .map((p, i) => {
       const text = p.textClean || p.ocrText || '';
-      // Для длинных постов берём начало и конец — тема может раскрываться в любом месте
-      const snippet = text.length > 600
-        ? text.slice(0, 350) + ' … ' + text.slice(-150)
-        : text.slice(0, 500);
+      const snippet = buildQueryAwareSnippet(text, query, 500);
       return `[${i + 1}] ${snippet}`;
     })
     .join('\n\n');
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
+    temperature: 0,
     max_tokens: 300,
     messages: [
       {
@@ -722,7 +1435,9 @@ async function llmRerank(query, candidates, topK) {
       },
       {
         role: 'user',
-        content: `Тема контент-плана: "${query}"\n\nИз постов ниже выбери ${topK} наиболее релевантных. Ищи семантическую связь — пост может описывать тему другими словами, через личный опыт или конкретные детали.\n\nВерни только номера постов через запятую, от наиболее к наименее релевантному. Без пояснений.\n\n${postList}`,
+        content: mode === 'strict'
+          ? `Тема контент-плана: "${query}"\n\nИз постов ниже выбери ${topK} наиболее релевантных. Сначала выбирай прямые попадания по теме, затем сильные косвенные. Важны посты, которые реально можно использовать для написания контента на эту тему (факты, история, сценарий, конкретика).\n\nВерни только номера постов через запятую, от наиболее к наименее релевантному. Без пояснений.\n\n${postList}`
+          : `Тема контент-плана: "${query}"\n\nИз постов ниже выбери ${topK} постов, которые могут быть полезны для раскрытия темы даже косвенно: опыт, эмоции, детали маршрутов, бытовые/организационные моменты, смежные истории. Прямые попадания тоже включай, но не игнорируй хорошие косвенные.\n\nВерни только номера постов через запятую, от наиболее к наименее релевантному. Без пояснений.\n\n${postList}`,
       },
     ],
   });
@@ -737,19 +1452,21 @@ async function llmRerank(query, candidates, topK) {
   return [...indices, ...rest].slice(0, topK).map(i => candidates[i]);
 }
 
-async function generateParaphrases(query) {
-  const cacheKey = query.toLowerCase().trim();
+async function generateParaphrases(query, count = 8) {
+  const normalizedQuery = query.toLowerCase().trim();
+  const cacheKey = `${count}:${normalizedQuery}`;
   if (paraphrasesCache.has(cacheKey)) return paraphrasesCache.get(cacheKey);
 
-  const cached = await diskCacheGet('para8', cacheKey);
+  const cached = await diskCacheGet(`para${count}`, normalizedQuery);
   if (cached) { paraphrasesCache.set(cacheKey, cached); return cached; }
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
+    temperature: 0,
     max_tokens: 400,
     messages: [{
       role: 'user',
-      content: `Перефразируй этот запрос 8 разными способами, используя максимально разные слова и выражения: разговорный стиль соцсетей, нарративные ключевые слова, синонимы темы. Каждая парафраза на новой строке, без нумерации и пояснений. Запрос: "${query}"`,
+      content: `Перефразируй этот запрос ${count} разными способами, используя максимально разные слова и выражения: разговорный стиль соцсетей, нарративные ключевые слова, синонимы темы. Каждая парафраза на новой строке, без нумерации и пояснений. Запрос: "${query}"`,
     }],
   });
 
@@ -757,10 +1474,10 @@ async function generateParaphrases(query) {
     .split('\n')
     .map(s => s.trim())
     .filter(Boolean)
-    .slice(0, 8);
+    .slice(0, count);
 
   paraphrasesCache.set(cacheKey, paraphrases);
-  await diskCacheSet('para8', cacheKey, paraphrases);
+  await diskCacheSet(`para${count}`, normalizedQuery, paraphrases);
   return paraphrases;
 }
 
@@ -811,6 +1528,7 @@ async function expandQuery(query) {
   try {
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
+      temperature: 0,
       max_tokens: 100,
       messages: [
         {
