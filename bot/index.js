@@ -10,16 +10,22 @@ import { collect, addChannel, removeChannel, readState } from '../collector/inde
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const POSTS_DIR = path.join(__dirname, '../data/posts');
 
+const SCORE_THRESHOLD = 0.05;
+const SCORE_MAX_RESULTS = 8;
+
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
 
 console.log('[Bot] Запущен');
+
+// Состояние ожидания ввода: Map<chatId, { action: 'search'|'generate' }>
+const awaitingInput = new Map();
 
 bot.onText(/\/start/, (msg) => {
   bot.sendMessage(msg.chat.id, [
     'Content Creation Helper',
     '',
-    '/search <запрос> — найти посты по теме',
-    '/generate <запрос> — найти посты и сгенерировать похожий текст',
+    '/search — найти посты по теме',
+    '/generate — найти посты и сгенерировать похожий текст',
     '/collect — запустить сбор новых постов',
     '/stats — статистика по каналам',
     '/addchannel telegram <username> — добавить Telegram-канал',
@@ -29,10 +35,39 @@ bot.onText(/\/start/, (msg) => {
   ].join('\n'));
 });
 
-bot.onText(/\/search (.+)/, async (msg, match) => {
-  const query = match[1].trim();
-  const chatId = msg.chat.id;
+bot.onText(/\/search$/, async (msg) => {
+  awaitingInput.set(msg.chat.id, { action: 'search' });
+  await bot.sendMessage(msg.chat.id, 'Введите запрос для поиска:');
+});
 
+bot.onText(/\/search (.+)/, async (msg, match) => {
+  await handleSearch(msg.chat.id, match[1].trim());
+});
+
+bot.onText(/\/generate$/, async (msg) => {
+  awaitingInput.set(msg.chat.id, { action: 'generate' });
+  await bot.sendMessage(msg.chat.id, 'Введите тему для генерации поста:');
+});
+
+bot.onText(/\/generate (.+)/, async (msg, match) => {
+  await handleGenerate(msg.chat.id, match[1].trim());
+});
+
+// Обработка свободного текста — для диалогового ввода
+bot.on('message', async (msg) => {
+  if (!msg.text || msg.text.startsWith('/')) return;
+  const pending = awaitingInput.get(msg.chat.id);
+  if (!pending) return;
+
+  awaitingInput.delete(msg.chat.id);
+  if (pending.action === 'search') {
+    await handleSearch(msg.chat.id, msg.text.trim());
+  } else if (pending.action === 'generate') {
+    await handleGenerate(msg.chat.id, msg.text.trim());
+  }
+});
+
+async function handleSearch(chatId, query) {
   await bot.sendMessage(chatId, `Ищу: "${query}"...`);
 
   try {
@@ -42,7 +77,13 @@ bot.onText(/\/search (.+)/, async (msg, match) => {
       return bot.sendMessage(chatId, 'Ничего не найдено.');
     }
 
-    for (const post of results.slice(0, 5)) {
+    const sorted = [...results].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    const filtered = sorted
+      .filter(r => (r.score ?? 0) >= SCORE_THRESHOLD)
+      .slice(0, SCORE_MAX_RESULTS);
+    const toShow = filtered.length > 0 ? filtered : sorted.slice(0, 1);
+
+    for (const post of toShow) {
       const preview = post.text?.slice(0, 300) || '';
       const text = [
         `📌 ${post.channel} | ${formatDate(post.date)}`,
@@ -57,12 +98,9 @@ bot.onText(/\/search (.+)/, async (msg, match) => {
     console.error('[Bot] /search error:', err);
     bot.sendMessage(chatId, 'Ошибка при поиске.');
   }
-});
+}
 
-bot.onText(/\/generate (.+)/, async (msg, match) => {
-  const query = match[1].trim();
-  const chatId = msg.chat.id;
-
+async function handleGenerate(chatId, query) {
   await bot.sendMessage(chatId, `Ищу посты по теме "${query}" и генерирую текст...`);
 
   try {
@@ -93,7 +131,7 @@ bot.onText(/\/generate (.+)/, async (msg, match) => {
     console.error('[Bot] /generate error:', err);
     bot.sendMessage(chatId, 'Ошибка при генерации.');
   }
-});
+}
 
 bot.onText(/\/collect/, async (msg) => {
   const chatId = msg.chat.id;
@@ -124,7 +162,6 @@ bot.onText(/\/stats/, async (msg) => {
       return bot.sendMessage(chatId, 'Каналов пока нет.');
     }
 
-    // OCR-статистика из файлов постов
     const ocrStats = await loadOcrStats();
 
     const lines = entries.map(([ch, s]) => {
@@ -132,9 +169,6 @@ bot.onText(/\/stats/, async (msg) => {
       const archiveStatus = s.allPostsDownloaded ? 'полный' : 'неполный';
       const downloadedRange = s.downloadedDateFrom && s.downloadedDateTo
         ? `${formatDate(s.downloadedDateFrom)} — ${formatDate(s.downloadedDateTo)}`
-        : 'нет данных';
-      const channelRange = s.channelDateFrom && s.channelDateTo
-        ? `${formatDate(s.channelDateFrom)} — ${formatDate(s.channelDateTo)}`
         : 'нет данных';
       const channelTotal = s.channelTotalPosts != null ? s.channelTotalPosts : '?';
       const downloadProgress = s.channelTotalPosts
@@ -165,7 +199,7 @@ bot.onText(/\/stats/, async (msg) => {
 
     bot.sendMessage(chatId, lines.join('\n'));
   } catch (err) {
-    console.error('[Bot] /status error:', err);
+    console.error('[Bot] /stats error:', err);
     bot.sendMessage(chatId, 'Ошибка при получении статистики.');
   }
 });
