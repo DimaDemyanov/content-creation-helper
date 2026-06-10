@@ -140,14 +140,15 @@ bot.onText(/\/collect/, async (msg) => {
 
   try {
     const { totalCollected, state } = await collect();
-    const lines = Object.entries(state).map(
+    const lines = ['✅ Сбор завершён!', ''];
+    lines.push(...Object.entries(state).map(
       ([ch, s]) => `${ch}: +${s.collected || 0} (всего ${s.totalPosts})`
-    );
+    ));
     lines.push('', `Итого новых: ${totalCollected}`);
-    bot.sendMessage(chatId, lines.join('\n'));
+    await bot.sendMessage(chatId, lines.join('\n'));
   } catch (err) {
     console.error('[Bot] /collect error:', err);
-    bot.sendMessage(chatId, 'Ошибка при сборе.');
+    await bot.sendMessage(chatId, 'Ошибка при сборе.');
   }
 });
 
