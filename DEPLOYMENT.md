@@ -20,7 +20,20 @@ cp .env.example .env
 nano .env
 ```
 
-## 2. Одноразовая авторизация GramJS
+## 2. Перенос локальных данных на сервер
+
+Если данные (посты, эмбеддинги, сессия GramJS) уже собраны локально — скопируй их через `rsync`. Запускать с **локальной** машины:
+
+```bash
+rsync -avz --progress \
+  /Users/dmitriidemianov/projects/content-creation-helper/data/ \
+  root@77.42.43.113:/opt/content-creation-helper/data/
+```
+
+Копирует всё содержимое `data/` — посты, эмбеддинги, `state.json`, и `telegram.session`.
+Если `telegram.session` скопирован успешно, шаг 3 (авторизация GramJS) можно пропустить.
+
+## 3. Одноразовая авторизация GramJS
 
 **Только при первом деплое.** GramJS требует интерактивный вход (номер телефона + код из Telegram).
 После этого сессия сохраняется на диске и повторная авторизация не нужна.
@@ -32,7 +45,7 @@ node auth/telegram.js
 
 Введи номер телефона и код подтверждения. После успешной авторизации файл сессии появится рядом.
 
-## 3. Создание systemd-сервиса
+## 4. Создание systemd-сервиса
 
 ```bash
 sudo nano /etc/systemd/system/content-helper-bot.service
@@ -64,19 +77,19 @@ sudo systemctl enable content-helper-bot.service
 sudo systemctl start content-helper-bot.service
 ```
 
-## 4. Подключение к серверу
+## 5. Подключение к серверу
 
 ```bash
 ssh root@77.42.43.113
 ```
 
-## 5. Проверка статуса сервиса
+## 6. Проверка статуса сервиса
 
 ```bash
 sudo systemctl status content-helper-bot.service --no-pager
 ```
 
-## 6. Просмотр логов
+## 7. Просмотр логов
 
 Последние 300 строк:
 
@@ -96,7 +109,7 @@ journalctl -u content-helper-bot.service -f
 journalctl -u content-helper-bot.service -n 1000 --no-pager | grep -E "error|Error|collect|Collect"
 ```
 
-## 7. Обновление кода и деплой
+## 8. Обновление кода и деплой
 
 ```bash
 cd /opt/content-creation-helper
@@ -113,7 +126,7 @@ sudo systemctl status content-helper-bot.service --no-pager
 
 Ожидаемая строка в логах: `[Bot] Запущен`
 
-## 8. Скрипты (запускать вручную при необходимости)
+## 9. Скрипты (запускать вручную при необходимости)
 
 Бэкфилл OCR для существующих постов:
 
@@ -129,7 +142,7 @@ node --env-file=.env scripts/backfill-ocr.js --source telegram
 node --env-file=.env scripts/backfill-embeddings.js
 ```
 
-## 9. Частые проблемы
+## 10. Частые проблемы
 
 - **Бот не отвечает** — проверь `TELEGRAM_BOT_TOKEN` в `.env` и статус сервиса.
 - **GramJS ошибка сессии** — повтори `node auth/telegram.js` и перезапусти сервис.
