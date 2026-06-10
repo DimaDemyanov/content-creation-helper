@@ -83,6 +83,7 @@ export async function runPendingOcr(channel) {
 
   console.log(`[OCR] @${channel}: обрабатываю ${pending.length} изображений...`);
   let done = 0;
+  const SAVE_EVERY = 10;
 
   for (const post of pending) {
     try {
@@ -93,6 +94,11 @@ export async function runPendingOcr(channel) {
     }
     delete post.ocrPending;
     done++;
+
+    if (done % SAVE_EVERY === 0) {
+      await fs.writeFile(path.join(POSTS_DIR, `${channel}.json`), JSON.stringify(posts, null, 2));
+      console.log(`[OCR] @${channel}: ${done}/${pending.length}`);
+    }
   }
 
   await fs.writeFile(path.join(POSTS_DIR, `${channel}.json`), JSON.stringify(posts, null, 2));
