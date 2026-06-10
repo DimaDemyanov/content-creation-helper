@@ -25,6 +25,14 @@ async function getClient() {
     { connectionRetries: 3 }
   );
 
+  // GramJS periodically pings in background update loop; transient TIMEOUTs are expected
+  // on unstable networks and should not pollute logs or break collection flow.
+  client.setLogLevel('none');
+  client.onError = async (err) => {
+    if (err?.message === 'TIMEOUT') return;
+    console.error('[TelegramClient] Ошибка:', err?.message || err);
+  };
+
   await client.connect();
 
   if (!await client.isUserAuthorized()) {

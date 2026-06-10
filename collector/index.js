@@ -135,19 +135,23 @@ export async function collect(channels = null, { fullSync = false } = {}) {
   return { totalCollected, state };
 }
 
-const isOnce = process.argv.includes('--once');
-const isFullSync = process.argv.includes('--full');
+const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/'));
 
-if (isOnce || isFullSync) {
-  collect(null, { fullSync: isFullSync }).catch(console.error);
-} else {
-  const config = JSON.parse(await fs.readFile(CONFIG_FILE, 'utf-8'));
-  const schedule = config.collect?.schedule || '0 9 * * *';
+if (isMain) {
+  const isOnce = process.argv.includes('--once');
+  const isFullSync = process.argv.includes('--full');
 
-  console.log(`[Collector] Запущен по расписанию: ${schedule}`);
-  collect().catch(console.error);
+  if (isOnce || isFullSync) {
+    collect(null, { fullSync: isFullSync }).catch(console.error);
+  } else {
+    const config = JSON.parse(await fs.readFile(CONFIG_FILE, 'utf-8'));
+    const schedule = config.collect?.schedule || '0 9 * * *';
 
-  cron.schedule(schedule, () => {
+    console.log(`[Collector] Запущен по расписанию: ${schedule}`);
     collect().catch(console.error);
-  });
+
+    cron.schedule(schedule, () => {
+      collect().catch(console.error);
+    });
+  }
 }
