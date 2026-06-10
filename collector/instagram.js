@@ -42,7 +42,7 @@ async function fetchAndSaveAccountPosts(account, since, limit, key) {
   const run = await client.actor('apify/instagram-scraper').call(input);
   const { items } = await client.dataset(run.defaultDatasetId).listItems();
 
-  const channelTotalPosts = items[0]?.ownerFullName ? null : items[0]?.postsCount ?? null;
+  const channelTotalPosts = items[0]?.postsCount ?? null;
 
   const sinceDate = since ? new Date(since) : null;
   const filtered = sinceDate
