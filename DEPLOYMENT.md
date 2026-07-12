@@ -142,10 +142,42 @@ node --env-file=.env scripts/backfill-ocr.js --source telegram
 node --env-file=.env scripts/backfill-embeddings.js
 ```
 
-## 10. Частые проблемы
+Ручной бэкап данных (архив `data/` → облако через rclone):
+
+```bash
+node --env-file=.env scripts/backup.js
+```
+
+## 10. Бэкапы (rclone → Google Drive)
+
+Бот сам архивирует `data/` и заливает в облако раз в месяц (1-е число, 04:00). Также доступна команда `/backup` в самом боте для запуска вручную.
+
+**Настройка на сервере (один раз):**
+
+```bash
+# Установить rclone
+curl https://rclone.org/install.sh | sudo bash
+
+# Настроить remote с именем "gdrive" (интерактивный мастер, попросит авторизацию Google)
+rclone config
+```
+
+В `.env` можно (не обязательно) переопределить:
+
+```bash
+RCLONE_REMOTE=gdrive                              # имя remote из `rclone config`
+BACKUP_RCLONE_PATH=content-creation-helper-backups # путь/папка в облаке
+BACKUP_KEEP_LOCAL=3                                # сколько последних архивов хранить локально
+TELEGRAM_ADMIN_CHAT_ID=                            # chat_id — бот пришлёт туда отчёт об успехе/ошибке бэкапа
+```
+
+Локальные архивы лежат в `backups/` (в git не попадают), старые чистятся автоматически.
+
+## 11. Частые проблемы
 
 - **Бот не отвечает** — проверь `TELEGRAM_BOT_TOKEN` в `.env` и статус сервиса.
 - **GramJS ошибка сессии** — повтори `node auth/telegram.js` и перезапусти сервис.
 - **Cron-сборщик не работает** — смотри логи на строки `[Collector]`; проверь `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, `APIFY_API_TOKEN`.
-- **OpenAI 429** — бэкфилл OCR/эмбеддингов использует экспоненциальный backoff; дождись завершения или снизь нагрузку.
+- **OpenAI 429 / "закончились токены"** — бот теперь сам показывает понятное сообщение об ошибке; для бэкфилла OCR/эмбеддингов используется экспоненциальный backoff, дождись завершения или снизь нагрузку.
 - **Данные не обновляются** — `data/state.json` хранит `lastCollectedAt`; при необходимости сбрось вручную.
+- **Бэкап падает с `spawn rclone ENOENT`** — rclone не установлен или remote не настроен, см. раздел 10.

@@ -2,10 +2,13 @@ import 'dotenv/config';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import cron from 'node-cron';
 import TelegramBot from 'node-telegram-bot-api';
 import { mqHybridRRF, search } from '../search/index.js';
 import { llmClient as openai, LLM_MODEL } from '../llm.js';
 import { collect, addChannel, removeChannel, readState } from '../collector/index.js';
+import { formatUserError } from '../utils/errors.js';
+import { runBackup } from '../scripts/backup.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const POSTS_DIR = path.join(__dirname, '../data/posts');
@@ -16,6 +19,15 @@ const SCORE_MAX_RESULTS = 8;
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
 
 console.log('[Bot] Запущен');
+
+// Ежемесячный автоматический бэкап data/ в облако (1-е число, 04:00)
+cron.schedule('0 4 1 * *', () => {
+  runBackup(bot).catch(() => {});
+});
+
+bot.on('polling_error', (err) => {
+  console.error('[Bot] polling_error:', err);
+});
 
 // Состояние ожидания ввода: Map<chatId, { action: 'search'|'generate' }>
 const awaitingInput = new Map();
@@ -28,11 +40,25 @@ bot.onText(/\/start/, (msg) => {
     '/generate — найти посты и сгенерировать похожий текст',
     '/collect — запустить сбор новых постов',
     '/stats — статистика по каналам',
+    '/backup — сделать бэкап данных прямо сейчас',
     '/addchannel telegram <username> — добавить Telegram-канал',
     '/addchannel instagram <username> — добавить Instagram-аккаунт',
     '/removechannel telegram <username> — удалить канал и все его посты',
     '/removechannel instagram <username> — удалить аккаунт и все его посты',
   ].join('\n'));
+});
+
+bot.onText(/\/backup/, async (msg) => {
+  const chatId = msg.chat.id;
+  await bot.sendMessage(chatId, 'Делаю бэкап данных...');
+
+  try {
+    const { sizeMB } = await runBackup();
+    await bot.sendMessage(chatId, `✅ Бэкап готов и загружен в облако (${sizeMB} МБ).`);
+  } catch (err) {
+    console.error('[Bot] /backup error:', err);
+    await bot.sendMessage(chatId, formatUserError(err));
+  }
 });
 
 bot.onText(/\/search$/, async (msg) => {
@@ -96,7 +122,7 @@ async function handleSearch(chatId, query) {
     }
   } catch (err) {
     console.error('[Bot] /search error:', err);
-    bot.sendMessage(chatId, 'Ошибка при поиске.');
+    bot.sendMessage(chatId, formatUserError(err));
   }
 }
 
@@ -129,7 +155,7 @@ async function handleGenerate(chatId, query) {
     await bot.sendMessage(chatId, `✍️ Сгенерированный пост:\n\n${generated}`);
   } catch (err) {
     console.error('[Bot] /generate error:', err);
-    bot.sendMessage(chatId, 'Ошибка при генерации.');
+    bot.sendMessage(chatId, formatUserError(err));
   }
 }
 
@@ -148,7 +174,7 @@ bot.onText(/\/collect/, async (msg) => {
     await bot.sendMessage(chatId, lines.join('\n'));
   } catch (err) {
     console.error('[Bot] /collect error:', err);
-    await bot.sendMessage(chatId, 'Ошибка при сборе.');
+    await bot.sendMessage(chatId, formatUserError(err));
   }
 });
 
@@ -201,7 +227,7 @@ bot.onText(/\/stats/, async (msg) => {
     bot.sendMessage(chatId, lines.join('\n'));
   } catch (err) {
     console.error('[Bot] /stats error:', err);
-    bot.sendMessage(chatId, 'Ошибка при получении статистики.');
+    bot.sendMessage(chatId, formatUserError(err));
   }
 });
 
@@ -215,7 +241,7 @@ bot.onText(/\/removechannel (telegram|instagram) (.+)/, async (msg, match) => {
     bot.sendMessage(chatId, `Канал @${username} (${source}) удалён вместе со всеми постами и эмбеддингами.`);
   } catch (err) {
     console.error('[Bot] /removechannel error:', err);
-    bot.sendMessage(chatId, `Ошибка при удалении канала: ${err.message}`);
+    bot.sendMessage(chatId, formatUserError(err));
   }
 });
 
@@ -234,7 +260,7 @@ bot.onText(/\/addchannel (telegram|instagram) (.+)/, async (msg, match) => {
     bot.sendMessage(chatId, `Готово! Собрано ${totalCollected} постов из @${username}.`);
   } catch (err) {
     console.error('[Bot] /addchannel error:', err);
-    bot.sendMessage(chatId, `Ошибка при добавлении канала: ${err.message}`);
+    bot.sendMessage(chatId, formatUserError(err));
   }
 });
 
